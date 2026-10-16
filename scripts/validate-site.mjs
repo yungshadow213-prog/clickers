@@ -8,6 +8,7 @@ assert.match(html, /<script src="\.\/books\.js"><\/script>/, "HTML must load the
 assert.match(html, /id="readerContent"/, "Reader content area must exist");
 assert.match(html, /id="chapterSelect"/, "Chapter selector must exist");
 assert.match(html, /id="downloadBook"/, "Reader download control must exist");
+assert.ok(fs.existsSync("assets/the-man-behind-the-mask.jpg"), "The existing book cover asset must be included");
 const inlineScripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(match => match[1]);
 assert.equal(inlineScripts.length, 1, "Expected one application inline script");
 new Function(inlineScripts[0]);
