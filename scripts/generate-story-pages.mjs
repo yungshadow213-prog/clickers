@@ -3,7 +3,7 @@ import path from "node:path";
 
 const root = process.cwd();
 const source = fs.readFileSync(path.join(root, "books.js"), "utf8");
-const match = source.match(/window\\.READING_ROOM_BOOKS\\s*=\\s*(\\[[\\s\\S]*\\])\\s*;?\\s*$/);
+const match = source.match(/window\.READING_ROOM_BOOKS\\s*=\\s*(\\[[\\s\\S]*\\])\\s*;?\\s*$/);
 if (!match) throw new Error("Could not parse the book catalogue in books.js.");
 const books = JSON.parse(match[1]);
 if (!Array.isArray(books) || books.length === 0) throw new Error("The book catalogue is empty.");
@@ -14,8 +14,8 @@ const esc = value => String(value ?? "").replace(/[&<>"']/g, ch => ({
 const attr = value => esc(value);
 const site = "https://yungshadow213-prog.github.io/clickers";
 const imageFor = book => book.cover
-  ? "https://raw.githubusercontent.com/yungshadow213-prog/clickers/main/" + book.cover.replace(/^\\.\\//, "")
-  : site + "/assets/clickers-social-cover.jpg";
+  ? "https://raw.githubusercontent.com/yungshadow213-prog/clickers/main/" + book.cover.replace(/^\.\\//, "")
+  : site + "/assets/the-man-behind-the-mask.jpg";
 
 for (const book of books) {
   if (!book.id || !book.title || !book.description) throw new Error("Every book needs an id, title, and description.");
@@ -60,7 +60,7 @@ for (const book of books) {
 <header><div class="wrap"><a class="brand" href="../../index.html" style="color:inherit;text-decoration:none" aria-label="Clickers Reading Room home">clickers<span> · reading room</span></a></div></header>
 <main class="wrap">
 <article class="story">
-<div class="cover-wrap">${book.cover ? '<img class="cover" src="../../' + attr(book.cover.replace(/^\\.\\//, "")) + '" alt="Cover of ' + attr(book.title) + '" fetchpriority="high">' : '<div class="cover-placeholder" role="img" aria-label="Cover artwork for ' + attr(book.title) + '">' + attr(book.title) + '</div>'}</div>
+<div class="cover-wrap">${book.cover ? '<img class="cover" src="../../' + attr(book.cover.replace(/^\.\\//, "")) + '" alt="Cover of ' + attr(book.title) + '" fetchpriority="high">' : '<div class="cover-placeholder" role="img" aria-label="Cover artwork for ' + attr(book.title) + '">' + attr(book.title) + '</div>'}</div>
 <div><div class="eyebrow">${attr(genre)}</div><h1>${attr(book.title)}</h1><div class="author">By ${attr(book.author || "Yung Dharick")}</div><p class="description">${attr(description)}</p><div class="details"><span class="pill">${chapters} chapters</span><span class="pill">Read in your browser</span><span class="pill">Free to explore</span></div><div class="actions"><a class="button" href="${attr(readUrl)}">Read this story ↗</a><a class="button secondary" href="${attr(pinterestUrl)}" rel="nofollow">Save to Pinterest ♡</a></div><p class="hint">No account needed. Open the story on your phone, tablet, or computer and settle in at your own pace.</p></div>
 </article>
 <div class="more"><a href="../../index.html">← Explore the full Clickers library</a></div>
