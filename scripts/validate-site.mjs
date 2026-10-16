@@ -31,4 +31,12 @@ for (const book of books) {
   }
 }
 assert.ok(html.includes("localStorage"), "Reading progress should persist on the device");
-console.log("Site validation passed:", books.length, "books,", chapterCount, "chapters.");
+for (const book of books) {
+  const storyPage = path.join("stories", book.id, "index.html");
+  assert.ok(fs.existsSync(storyPage), "Missing generated story landing page for " + book.title);
+  const page = fs.readFileSync(storyPage, "utf8");
+  assert.ok(page.includes('property="og:title"'), book.title + " landing page needs a social title");
+  assert.ok(page.includes('property="og:image"'), book.title + " landing page needs a social preview image");
+  assert.ok(page.includes('href="../../index.html?book=' + encodeURIComponent(book.id) + '"'), book.title + " landing page needs a reading link");
+}
+console.log("Site validation passed:", books.length, "books,", chapterCount, "chapters, and", books.length, "story landing pages.");
