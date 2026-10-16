@@ -11,6 +11,7 @@ A responsive, static reading website for Yung Dharick's novels.
 - Adjustable text size and light/dark reading themes
 - Local reading progress (stored on the reader's device)
 - Plain-text downloads and shareable book links
+- Existing cover artwork and social-preview metadata for sharing
 - Mobile-responsive layout and keyboard support
 - Automated validation of the book data and reader JavaScript
 

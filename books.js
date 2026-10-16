@@ -6,6 +6,7 @@ window.READING_ROOM_BOOKS = [
     "label": "Psychological mystery",
     "description": "Julian wakes beside Emma’s body with blood on his hands and no memory of the missing hours. As suspicion closes in, every answer opens another dangerous question.",
     "tone": "",
+    "cover": "assets/the-man-behind-the-mask.jpg",
     "author": "Yung Dharick",
     "chapters": [
       {
