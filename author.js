@@ -374,6 +374,35 @@ $("bookExtraImages").addEventListener("change", () => {
   const files = Array.from($("bookExtraImages").files || []);
   $("bookExtraImageList").textContent = files.length ? files.map(file => file.name + " · " + Math.ceil(file.size / 1024) + " KB").join(" | ") : "No additional images selected.";
 });
+$("importLibraryButton").addEventListener("click", async () => {
+  const library = Array.isArray(window.READING_ROOM_BOOKS) ? window.READING_ROOM_BOOKS : [];
+  if (!library.length) { status("globalStatus", "The public library catalogue did not load.", "error"); return; }
+  if (!confirm("Import " + library.length + " public books into your editable author workspace? Existing books with matching slugs will be skipped.")) return;
+  const button = $("importLibraryButton"); button.disabled = true;
+  let imported = 0, skipped = 0;
+  try {
+    for (const source of library) {
+      const slug = String(source.id || source.title).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 80) || "story";
+      if (state.books.some(book => book.slug === slug)) { skipped++; continue; }
+      const saved = await api("/api/admin/books", { method: "POST", body: JSON.stringify({ title: source.title, slug, genre: source.genre || source.label || "", description: source.description || "", cover_path: source.cover || "" }) });
+      const chapters = Array.isArray(source.chapters) ? source.chapters : [];
+      for (let i = 0; i < chapters.length; i++) {
+        const chapter = chapters[i];
+        const body = Array.isArray(chapter.paragraphs) ? chapter.paragraphs.join("\\n\\n") : String(chapter.body || "");
+        if (!body.trim()) continue;
+        await api("/api/admin/books/" + encodeURIComponent(saved.id) + "/chapters", { method: "POST", body: JSON.stringify({ chapter_number: i + 1, title: chapter.title || "Chapter " + (i + 1), body, status: "published", is_paid: false }) });
+      }
+      if (chapters.length) await api("/api/admin/books/" + encodeURIComponent(saved.id), { method: "PATCH", body: JSON.stringify({ status: "published" }) });
+      imported++;
+      status("globalStatus", "Imported " + imported + " of " + library.length + " books…");
+    }
+    await loadBooks();
+    status("globalStatus", "Import complete: " + imported + " imported, " + skipped + " already existed. Edit the imported books and chapters here.", "success");
+  } catch (error) {
+    status("globalStatus", "Import stopped after " + imported + " book(s): " + error.message, "error");
+    await loadBooks();
+  } finally { button.disabled = false; }
+});
 $("loginForm").addEventListener("submit", signIn);
 $("signOutButton").addEventListener("click", async () => {
   await state.supabase?.auth.signOut();
