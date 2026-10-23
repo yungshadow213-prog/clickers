@@ -5,3 +5,6 @@ keep_vars = true
 
 [vars]
 ALLOWED_ORIGIN = "https://yungshadow213-prog.github.io"
+OWNER_USER_ID = "c3de7ec6-b074-43e7-be25-65a2f8e6a79b"
+SUPABASE_PUBLISHABLE_KEY = "sb_publishable_qooRe6Fy4elPkozXMlcniw_dhaJwkG3"
+SUPABASE_URL = "https://jlqyusgaauovyksksywh.supabase.co"
