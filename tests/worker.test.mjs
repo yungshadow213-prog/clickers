@@ -76,9 +76,11 @@ test("public chapter endpoint only requests published, non-paid chapters", async
   ), env);
   assert.equal(result.status, 200);
   assert.deepEqual(await result.json(), [{ id: "chapter-free", status: "published", is_paid: false }]);
-  const chapterQuery = calls.find(call => call.url.pathname.endsWith("/clickers_chapters")).url.search;
-  assert.match(chapterQuery, /status=eq\.published/);
-  assert.match(chapterQuery, /is_paid=eq\.false/);
+  const chapterCall = calls.find(call => call.url.pathname.endsWith("/clickers_chapters"));
+  assert.match(chapterCall.url.search, /status=eq\.published/);
+  assert.match(chapterCall.url.search, /is_paid=eq\.false/);
+  assert.equal(chapterCall.init.headers.apikey, env.SUPABASE_SECRET_KEY);
+  assert.equal(chapterCall.init.headers.authorization, undefined, "New Supabase secret keys must not be sent as Bearer JWTs");
 });
 
 test("unpublished books are not discoverable from the public API", async () => {
@@ -93,4 +95,26 @@ test("unpublished books are not discoverable from the public API", async () => {
   assert.equal(result.status, 200);
   assert.deepEqual(await result.json(), []);
   assert.match(requested, /status=eq\.published/);
+});
+
+test("private backup storage uses the secret key only as an apikey", async () => {
+  let storageHeaders;
+  globalThis.fetch = async (url, init = {}) => {
+    const parsed = new URL(String(url));
+    if (parsed.pathname === "/auth/v1/user") {
+      return new Response(JSON.stringify({ id: env.OWNER_USER_ID }), { status: 200 });
+    }
+    if (parsed.pathname === "/storage/v1/object/list/clickers-private") {
+      storageHeaders = init.headers;
+      return new Response(JSON.stringify([]), { status: 200 });
+    }
+    throw new Error("Unexpected URL " + parsed);
+  };
+  const result = await worker.fetch(new Request("https://api.example.workers.dev/api/admin/backups", {
+    headers: { origin: env.ALLOWED_ORIGIN, authorization: "Bearer valid-owner-session" }
+  }), env);
+  assert.equal(result.status, 200);
+  assert.deepEqual(await result.json(), []);
+  assert.equal(storageHeaders.apikey, env.SUPABASE_SECRET_KEY);
+  assert.equal(storageHeaders.authorization, undefined, "Storage must not receive a secret key as a Bearer token");
 });
