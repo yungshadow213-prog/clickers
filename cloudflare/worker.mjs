@@ -104,7 +104,12 @@ function validateBook(body, partial = false) {
   }
   if (!partial || "description" in body) out.description = cleanText(body.description, 5000);
   if (!partial || "genre" in body) out.genre = cleanText(body.genre, 80);
-  if (!partial || "cover_path" in body) out.cover_path = cleanText(body.cover_path, 500);
+  if (!partial || "cover_path" in body) out.cover_path = cleanText(body.cover_path, 1000);
+  if ("extra_images" in body || !partial) {
+    const images = Array.isArray(body.extra_images) ? body.extra_images.slice(0, 8) : [];
+    out.extra_images = images.filter(item => item && typeof item.url === "string" && item.url.startsWith("https://"))
+      .map(item => ({ name: cleanText(item.name, 180) || "Story image", url: item.url.slice(0, 2000) }));
+  }
   if (!partial || "slug" in body) {
     out.slug = slugify(body.slug || body.title);
     if (!out.slug) return { error: "A valid book slug is required." };
@@ -140,9 +145,32 @@ async function adminRoute(request, env, url, user) {
   const path = url.pathname.replace(/\/+$/, "");
   const method = request.method;
 
+  if (path === "/api/admin/images" && method === "POST") {
+    let form;
+    try { form = await request.formData(); } catch { return response({ error: "Send an image file." }, 400); }
+    const file = form.get("file");
+    const allowed = new Set(["image/jpeg", "image/png", "image/webp", "image/avif"]);
+    if (!file || typeof file.arrayBuffer !== "function") return response({ error: "Choose an image file." }, 400);
+    if (!allowed.has(file.type)) return response({ error: "Choose a JPG, PNG, WebP or AVIF image." }, 400);
+    if (file.size < 1 || file.size > 5 * 1024 * 1024) return response({ error: "Images must be between 1 byte and 5 MB." }, 400);
+    const ext = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/avif": "avif" }[file.type];
+    const objectPath = ownerId + "/" + crypto.randomUUID() + "." + ext;
+    const base = env.SUPABASE_URL.replace(/\\/+$/, "");
+    const upload = await fetch(base + "/storage/v1/object/clickers-book-images/" + objectPath.split("/").map(encodeURIComponent).join("/"), {
+      method: "POST",
+      headers: { apikey: env.SUPABASE_SECRET_KEY, authorization: "Bearer " + env.SUPABASE_SECRET_KEY, "content-type": file.type, "x-upsert": "false" },
+      body: await file.arrayBuffer()
+    });
+    if (!upload.ok) {
+      const details = await upload.text();
+      return response({ error: "Image storage rejected the upload: " + details.slice(0, 240) }, 502);
+    }
+    return response({ url: base + "/storage/v1/object/public/clickers-book-images/" + objectPath, name: cleanText(file.name, 180) }, 201);
+  }
+
   if (path === "/api/admin/books" && method === "GET") {
     return response(await db(env, "clickers_books", {
-      query: ownerFilter(ownerId) + "&select=id,slug,title,description,genre,cover_path,status,created_at,updated_at&order=updated_at.desc"
+      query: ownerFilter(ownerId) + "&select=id,slug,title,description,genre,cover_path,extra_images,status,created_at,updated_at&order=updated_at.desc"
     }));
   }
 
@@ -155,7 +183,7 @@ async function adminRoute(request, env, url, user) {
       return response({ error: "Save the book as a draft, publish at least one free chapter, then publish the book." }, 400);
     }
     const rows = await db(env, "clickers_books", {
-      method: "POST", query: "select=id,slug,title,description,genre,cover_path,status,created_at,updated_at",
+      method: "POST", query: "select=id,slug,title,description,genre,cover_path,extra_images,status,created_at,updated_at",
       body: { ...parsed.value, owner_id: ownerId }, prefer: "return=representation"
     });
     return response(rows?.[0] || null, 201);
@@ -177,7 +205,7 @@ async function adminRoute(request, env, url, user) {
       }
     }
     const rows = await db(env, "clickers_books", {
-      method: "PATCH", query: ownerFilter(ownerId) + "&id=eq." + bookMatch[1] + "&select=id,slug,title,description,genre,cover_path,status,created_at,updated_at",
+      method: "PATCH", query: ownerFilter(ownerId) + "&id=eq." + bookMatch[1] + "&select=id,slug,title,description,genre,cover_path,extra_images,status,created_at,updated_at",
       body: parsed.value, prefer: "return=representation"
     });
     if (!rows?.length) return response({ error: "Book not found." }, 404);
@@ -497,7 +525,7 @@ export default {
     try {
       if (url.pathname === "/api/books" && request.method === "GET") {
         const books = await db(env, "clickers_books", {
-          query: "owner_id=eq." + encodeURIComponent(env.OWNER_USER_ID) + "&status=eq.published&select=id,slug,title,description,genre,cover_path&order=updated_at.desc"
+          query: "owner_id=eq." + encodeURIComponent(env.OWNER_USER_ID) + "&status=eq.published&select=id,slug,title,description,genre,cover_path,extra_images&order=updated_at.desc"
         });
         return response(books, 200, cors);
       }
