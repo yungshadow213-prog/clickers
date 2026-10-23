@@ -14,7 +14,7 @@
 </style>
 </head>
 <body>
-<header><div class="top"><a class="brand" href="./index.html"><span class="mark">c</span><span>clickers <small>· author studio</small></span></a><div class="actions"><a class="button outline" href="./index.html">View reading room ↗</a><button class="button subtle hidden" id="signOutButton" type="button">Sign out</button></div></div></header>
+<header><div class="top"><a class="brand" href="./index.html"><span class="mark">c</span><span>clickers <small>· author studio</small></span></a><div class="actions"><a class="button outline" href="./index.html">View reading room ↗</a><button class="button outline hidden" id="backupButton" type="button">Create backup</button><button class="button outline hidden" id="showBackupsButton" type="button">Backups</button><button class="button subtle hidden" id="signOutButton" type="button">Sign out</button></div></div></header>
 <main>
 <section id="loginSection" class="login-wrap panel">
 <div class="eyebrow">Private workspace</div><h1>Welcome back.</h1><p class="muted">Sign in to manage your stories, chapters, drafts and revisions. This dashboard does not use the public manuscript catalogue for private writing.</p>
@@ -64,6 +64,7 @@
 </div>
 </section>
 </div>
+<section id="backupsPanel" class="panel hidden" style="margin-top:22px"><div class="panel-head"><div><div class="eyebrow">Private recovery</div><h2>Cloud backups</h2></div><button id="closeBackupsButton" class="button subtle" type="button">Close</button></div><p class="muted">Backups are stored in the private Supabase Storage bucket. Restoring creates new draft copies and never overwrites your current books.</p><div id="backupList" class="stack"></div><p id="backupStatus" class="status" role="status" aria-live="polite"></p></section>
 <p id="globalStatus" class="status" role="status" aria-live="polite"></p>
 </section>
 </main>
