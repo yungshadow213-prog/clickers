@@ -50,6 +50,16 @@ async function api(path, options = {}) {
   if (!response.ok) throw new Error(data?.error || "Request failed (" + response.status + ").");
   return data;
 }
+async function uploadImage(file) {
+  if (!file) return "";
+  if (!["image/jpeg","image/png","image/webp","image/avif"].includes(file.type)) throw new Error("Choose a JPG, PNG, WebP or AVIF image.");
+  if (file.size > 5 * 1024 * 1024) throw new Error("Images must be 5 MB or smaller.");
+  const ext = {"image/jpeg":"jpg","image/png":"png","image/webp":"webp","image/avif":"avif"}[file.type];
+  const path = state.session.user.id + "/" + crypto.randomUUID() + "." + ext;
+  const result = await state.supabase.storage.from("clickers-book-images").upload(path, file, { upsert:false, contentType:file.type });
+  if (result.error) throw new Error("Image upload failed: " + result.error.message);
+  return state.supabase.storage.from("clickers-book-images").getPublicUrl(result.data.path).data.publicUrl;
+}
 function resetBookEditor() {
   state.book = null; state.chapters = []; state.chapter = null; state.isNewBook = false; state.isNewChapter = false;
   $("noBookState").classList.remove("hidden");
@@ -93,7 +103,7 @@ async function loadBook(id) {
     $("bookTitle").value = book.title || "";
     $("bookSlug").value = book.slug || "";
     $("bookGenre").value = book.genre || "";
-    $("bookCover").value = book.cover_path || "";
+    $("bookCover").value = book.cover_path || "";\n    $("bookCoverPreview").src = book.cover_path || ""; $("bookCoverPreview").classList.toggle("hidden", !book.cover_path);
     $("bookDescription").value = book.description || "";
     $("bookEditorHeading").textContent = book.title;
     $("bookStatusPill").textContent = book.status === "published" ? "Published" : "Draft";
@@ -148,7 +158,7 @@ function newBook() {
   state.book = null; state.chapters = []; state.chapter = null; state.isNewBook = true; state.isNewChapter = false;
   $("noBookState").classList.add("hidden");
   $("bookEditor").classList.remove("hidden");
-  $("bookTitle").value = ""; $("bookSlug").value = ""; $("bookGenre").value = ""; $("bookCover").value = ""; $("bookDescription").value = "";
+  $("bookTitle").value = ""; $("bookSlug").value = ""; $("bookGenre").value = ""; $("bookCover").value = ""; $("bookDescription").value = ""; $("bookCoverPreview").removeAttribute("src"); $("bookCoverPreview").classList.add("hidden"); $("bookCoverFile").value = ""; $("bookExtraImages").value = ""; $("bookExtraImageList").textContent = "No additional images selected.";
   $("bookEditorHeading").textContent = "New book"; $("bookStatusPill").textContent = "Not saved";
   $("publishBookButton").textContent = "Publish book";
   $("chapterList").replaceChildren();
@@ -356,6 +366,14 @@ async function startStudio() {
   }
 }
 
+$("bookCoverFile").addEventListener("change", () => {
+  const file = $("bookCoverFile").files && $("bookCoverFile").files[0];
+  if (file) { $("bookCoverPreview").src = URL.createObjectURL(file); $("bookCoverPreview").classList.remove("hidden"); }
+});
+$("bookExtraImages").addEventListener("change", () => {
+  const files = Array.from($("bookExtraImages").files || []);
+  $("bookExtraImageList").textContent = files.length ? files.map(file => file.name + " · " + Math.ceil(file.size / 1024) + " KB").join(" | ") : "No additional images selected.";
+});
 $("loginForm").addEventListener("submit", signIn);
 $("signOutButton").addEventListener("click", async () => {
   await state.supabase?.auth.signOut();
