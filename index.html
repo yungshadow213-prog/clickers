@@ -226,7 +226,8 @@ async function loadPublishedAuthorBooks(){
   }));
   const existing=new Set(books.map(book=>String(book.title||"").trim().toLowerCase()));
   for(const book of additions.filter(Boolean)){
-   if(!existing.has(book.title.trim().toLowerCase()))books.push(book);
+   const titleKey=book.title.trim().toLowerCase();
+   if(!existing.has(titleKey)){books.push(book);existing.add(titleKey);}
   }
   renderFilters();renderBooks();
   const params=new URLSearchParams(location.search),requested=params.get("book");
