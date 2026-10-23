@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#f7f2e9">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<title>Author studio — Clickers</title>
+<style>
+:root{color-scheme:light;--paper:#f7f2e9;--paper-deep:#eee4d6;--ink:#29231f;--muted:#766c63;--wine:#793c4a;--wine-dark:#5e2b38;--line:#ded2c4;--card:#fffdf8;--shadow:0 18px 48px #3422170b}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font-family:Georgia,"Times New Roman",serif}button,input,textarea,select{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid #b77d88;outline-offset:3px}header{position:sticky;top:0;z-index:3;background:#f7f2e9ed;border-bottom:1px solid var(--line);backdrop-filter:blur(14px)}.top{width:min(1180px,calc(100% - 32px));margin:auto;min-height:72px;display:flex;align-items:center;justify-content:space-between;gap:16px}.brand{display:flex;align-items:center;gap:10px;font-size:17px}.mark{display:grid;place-items:center;width:34px;height:34px;border:1px solid var(--wine);border-radius:50%;color:var(--wine)}.top small{font:11px Arial,sans-serif;color:var(--muted)}main{width:min(1180px,calc(100% - 32px));margin:34px auto 80px}.eyebrow{font:10px Arial,sans-serif;letter-spacing:.2em;text-transform:uppercase;color:var(--wine)}h1{font-size:clamp(36px,5vw,56px);font-weight:400;letter-spacing:-.05em;margin:10px 0 12px}h2{font-weight:400;font-size:25px;margin:0 0 12px}p{line-height:1.7}.muted{color:var(--muted);font:13px/1.7 Arial,sans-serif}.layout{display:grid;grid-template-columns:300px minmax(0,1fr);gap:24px;align-items:start}.panel{background:var(--card);border:1px solid var(--line);padding:22px;box-shadow:var(--shadow);min-width:0}.panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:17px}.button{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--wine);border-radius:999px;background:var(--wine);color:white;padding:11px 16px;font:12px Arial,sans-serif}.button:hover{background:var(--wine-dark)}.button.outline{background:transparent;color:var(--wine)}.button.subtle{border-color:var(--line);background:transparent;color:var(--ink)}.button.danger{border-color:#a23f45;background:#a23f45}.button:disabled{opacity:.5;cursor:not-allowed}.field{display:grid;gap:7px;margin:14px 0}.field label{font:11px Arial,sans-serif;letter-spacing:.04em;color:var(--muted)}input,textarea,select{width:100%;border:1px solid var(--line);border-radius:8px;background:#fffaf4;color:var(--ink);padding:12px;font:13px/1.6 Arial,sans-serif}textarea{resize:vertical;min-height:150px}textarea#chapterBody{min-height:400px;line-height:1.85;font-size:15px}input:focus,textarea:focus,select:focus{border-color:var(--wine);outline-offset:1px}.stack{display:grid;gap:10px}.book-item{display:block;width:100%;text-align:left;padding:13px;border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:8px}.book-item.active{border-color:var(--wine);background:#f6e9e8}.book-item strong{display:block;font-size:15px;font-weight:400}.book-item span{display:block;margin-top:5px;font:10px Arial,sans-serif;color:var(--muted)}.pill{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:6px 9px;font:10px Arial,sans-serif;color:var(--muted)}.chapter-list{display:grid;gap:8px;margin:14px 0}.chapter-item{display:flex;align-items:center;justify-content:space-between;gap:10px;text-align:left;border:1px solid var(--line);background:transparent;border-radius:8px;padding:11px;color:var(--ink)}.chapter-item.active{border-color:var(--wine);background:#f6e9e8}.chapter-item span{font:12px Arial,sans-serif;overflow-wrap:anywhere}.actions{display:flex;gap:9px;align-items:center;flex-wrap:wrap}.toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:18px}.status{font:11px Arial,sans-serif;color:var(--muted);min-height:18px}.status.error{color:#a23f45}.status.success{color:#3b6a4a}.hidden{display:none!important}.login-wrap{max-width:460px;margin:36px auto}.hint{padding:12px 14px;border-left:2px solid var(--wine);background:#f6e9e8;color:var(--muted);font:12px/1.7 Arial,sans-serif}.checkrow{display:flex;align-items:center;gap:9px;font:12px Arial,sans-serif;color:var(--muted)}.checkrow input{width:auto}.empty{padding:22px;border:1px dashed var(--line);color:var(--muted);font:12px/1.8 Arial,sans-serif;text-align:center}.split{display:grid;grid-template-columns:1fr 1fr;gap:12px}.footer-note{margin-top:22px;color:var(--muted);font:11px/1.7 Arial,sans-serif}
+@media(max-width:820px){.layout{grid-template-columns:1fr}.book-panel{order:0}.editor-panel{order:1}.split{grid-template-columns:1fr}textarea#chapterBody{min-height:300px}.top small{display:none}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+</style>
+</head>
+<body>
+<header><div class="top"><a class="brand" href="./index.html"><span class="mark">c</span><span>clickers <small>· author studio</small></span></a><div class="actions"><a class="button outline" href="./index.html">View reading room ↗</a><button class="button outline hidden" id="backupButton" type="button">Create backup</button><button class="button outline hidden" id="showBackupsButton" type="button">Backups</button><button class="button subtle hidden" id="signOutButton" type="button">Sign out</button></div></div></header>
+<main>
+<section id="loginSection" class="login-wrap panel">
+<div class="eyebrow">Private workspace</div><h1>Welcome back.</h1><p class="muted">Sign in to manage your stories, chapters, drafts and revisions. This dashboard does not use the public manuscript catalogue for private writing.</p>
+<form id="loginForm">
+<div class="field"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="username" required></div>
+<div class="field"><label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required></div>
+<div class="actions"><button class="button" id="signInButton" type="submit">Sign in securely</button></div>
+<p id="loginStatus" class="status" role="status" aria-live="polite"></p>
+</form>
+<p class="footer-note">Account creation is intentionally disabled here. The project owner must configure the approved author account in Supabase first.</p>
+</section>
+
+<section id="studioSection" class="hidden">
+<div class="eyebrow">Your stories, in one place</div><h1>Author studio</h1><p class="muted">Create a book, write chapters, save drafts, publish free chapters, and review previous saved versions. Unpublished and paid chapters are never returned by the public API.</p>
+<div class="layout">
+<aside class="panel book-panel">
+<div class="panel-head"><h2>Your library</h2><button id="newBookButton" class="button" type="button">+ New</button></div>
+<div id="bookList" class="stack"><div class="empty">Loading your books…</div></div>
+<p class="footer-note">Private drafts are stored in Supabase, not in the public <code>books.js</code> file.</p>
+</aside>
+<section class="panel editor-panel">
+<div id="noBookState" class="empty">Choose a book or create one to start writing.</div>
+<div id="bookEditor" class="hidden">
+<div class="toolbar"><div><div class="eyebrow">Book details</div><h2 id="bookEditorHeading">Untitled book</h2></div><span id="bookStatusPill" class="pill">Draft</span></div>
+<form id="bookForm">
+<div class="field"><label for="bookTitle">Book title</label><input id="bookTitle" maxlength="180" required></div>
+<div class="field"><label for="bookSlug">URL slug</label><input id="bookSlug" maxlength="80" placeholder="my-story"></div>
+<div class="split"><div class="field"><label for="bookGenre">Genre</label><input id="bookGenre" maxlength="80"></div><div class="field"><label for="bookCover">Cover path (optional)</label><input id="bookCover" maxlength="500" placeholder="assets/my-cover.jpg"></div></div>
+<div class="field"><label for="bookDescription">Synopsis</label><textarea id="bookDescription" rows="3" maxlength="5000"></textarea></div>
+<div class="actions"><button class="button" type="submit">Save book</button><button class="button outline" id="publishBookButton" type="button">Publish book</button><button class="button danger" id="deleteBookButton" type="button">Delete book</button></div>
+<p id="bookStatus" class="status" role="status" aria-live="polite"></p>
+</form>
+<hr style="border:0;border-top:1px solid var(--line);margin:25px 0">
+<div class="toolbar"><div><div class="eyebrow">Manuscript</div><h2>Chapters</h2></div><button id="newChapterButton" class="button outline" type="button">+ New chapter</button></div>
+<div id="chapterList" class="chapter-list"></div>
+<div id="chapterEditor" class="hidden">
+<form id="chapterForm">
+<div class="split"><div class="field"><label for="chapterNumber">Chapter number</label><input id="chapterNumber" type="number" min="1" max="10000" step="1" required></div><div class="field"><label for="chapterTitle">Chapter title</label><input id="chapterTitle" maxlength="180" required></div></div>
+<div class="field"><label for="chapterBody">Chapter text</label><textarea id="chapterBody" required placeholder="Start writing here…"></textarea></div>
+<div class="split"><label class="checkrow"><input id="chapterPaid" type="checkbox"> Paid chapter (locked from public API)</label><label class="checkrow"><input id="chapterPublished" type="checkbox"> Publish this chapter</label></div>
+<p class="hint">Paid chapter delivery and payments are not implemented yet. Marking a chapter as paid keeps it excluded from the public chapter endpoint, even if its status is Published.</p>
+<div class="actions"><button class="button" type="submit">Save chapter</button><button class="button outline" id="chapterPublishButton" type="button">Save & publish</button><button class="button subtle" id="revisionsButton" type="button">View revisions</button><button class="button danger" id="deleteChapterButton" type="button">Delete chapter</button></div>
+<p id="chapterStatus" class="status" role="status" aria-live="polite"></p>
+</form>
+<div id="revisionsPanel" class="hidden"><h2>Saved revisions</h2><div id="revisionList" class="stack"></div></div>
+</div>
+</div>
+</section>
+</div>
+<section id="backupsPanel" class="panel hidden" style="margin-top:22px"><div class="panel-head"><div><div class="eyebrow">Private recovery</div><h2>Cloud backups</h2></div><button id="closeBackupsButton" class="button subtle" type="button">Close</button></div><p class="muted">Backups are stored in the private Supabase Storage bucket. Restoring creates new draft copies and never overwrites your current books.</p><div id="backupList" class="stack"></div><p id="backupStatus" class="status" role="status" aria-live="polite"></p></section>
+<p id="globalStatus" class="status" role="status" aria-live="polite"></p>
+</section>
+</main>
+<script src="./author-config.js"></script>
+<script type="module" src="./author.js"></script>
+</body>
+</html>

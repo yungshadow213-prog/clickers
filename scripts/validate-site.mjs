@@ -6,6 +6,7 @@ import vm from "node:vm";
 const html = fs.readFileSync("index.html", "utf8");
 const bookSource = fs.readFileSync("books.js", "utf8");
 assert.match(html, /<script src="\.\/books\.js"><\/script>/, "HTML must load the book catalogue");
+assert.match(html, /<script src="\.\/author-config\.js"><\/script>/, "Reader must load the public author API configuration");
 assert.match(html, /id="readerContent"/, "Reader content area must exist");
 assert.match(html, /id="chapterSelect"/, "Chapter selector must exist");
 assert.match(html, /id="downloadBook"/, "Reader download control must exist");
@@ -13,6 +14,9 @@ assert.ok(fs.existsSync("assets/the-man-behind-the-mask.jpg"), "The existing boo
 const inlineScripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(match => match[1]);
 assert.equal(inlineScripts.length, 1, "Expected one application inline script");
 new Function(inlineScripts[0]);
+assert.match(inlineScripts[0], /async function loadPublishedAuthorBooks/, "Reader must load published books from the author API");
+assert.match(inlineScripts[0], /is_paid=eq\.false|\/api\/books\//, "Reader must use the public book/chapter API routes");
+assert.match(inlineScripts[0], /existing\.add\(titleKey\)/, "Reader must deduplicate new author books against the existing catalogue");
 const context = { window: {} };
 vm.runInNewContext(bookSource, context);
 const books = context.window.READING_ROOM_BOOKS;
