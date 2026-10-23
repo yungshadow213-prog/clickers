@@ -476,6 +476,9 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const cors = corsHeaders(request, env);
+    if (url.pathname === "/" && request.method === "GET") {
+      return Response.redirect("https://yungshadow213-prog.github.io/clickers/", 302);
+    }
     if (request.method === "OPTIONS") {
       if (request.headers.get("Origin") && cors["access-control-allow-origin"] === undefined) {
         return response({ error: "Origin not allowed." }, 403, cors);
