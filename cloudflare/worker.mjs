@@ -57,7 +57,6 @@ async function db(env, table, { method = "GET", query = "", body, prefer } = {})
   const url = env.SUPABASE_URL.replace(/\/+$/, "") + "/rest/v1/" + table + (query ? "?" + query : "");
   const headers = {
     apikey: env.SUPABASE_SECRET_KEY,
-    authorization: "Bearer " + env.SUPABASE_SECRET_KEY,
     accept: "application/json"
   };
   if (body !== undefined) headers["content-type"] = "application/json";
@@ -234,7 +233,6 @@ async function adminRoute(request, env, url, user) {
       method: "POST",
       headers: {
         apikey: env.SUPABASE_SECRET_KEY,
-        authorization: "Bearer " + env.SUPABASE_SECRET_KEY,
         "content-type": "application/json"
       },
       body: JSON.stringify({ prefix, limit: 50, offset: 0, sortBy: { column: "created_at", order: "desc" } })
