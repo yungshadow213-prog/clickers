@@ -305,7 +305,7 @@ async function loadBackups() {
           try {
             const result = await api("/api/admin/backups/restore", { method: "POST", body: JSON.stringify({ path: backup.path }) });
             await loadBooks();
-            status("backupStatus", "Recovered " + result.books + " books and " + result.chapters + " chapters as drafts. Existing books were not changed.", "success");
+            status("backupStatus", "Recovered " + result.books + " books, " + result.chapters + " chapters, and " + (result.revisions || 0) + " saved revisions as drafts. Existing books were not changed.", "success");
           } catch (error) {
             status("backupStatus", error.message, "error");
           } finally { restore.disabled = false; }
