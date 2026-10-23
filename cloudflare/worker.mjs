@@ -228,6 +228,132 @@ async function adminRoute(request, env, url, user) {
       query: ownerFilter(ownerId) + "&chapter_id=eq." + revisionsMatch[1] + "&select=id,created_at,snapshot&order=created_at.desc&limit=30"
     }));
   }
+  if (path === "/api/admin/backups" && method === "GET") {
+    const prefix = ownerId + "/backups";
+    const listResponse = await fetch(env.SUPABASE_URL.replace(/\/+$/, "") + "/storage/v1/object/list/clickers-private", {
+      method: "POST",
+      headers: {
+        apikey: env.SUPABASE_SECRET_KEY,
+        authorization: "Bearer " + env.SUPABASE_SECRET_KEY,
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({ prefix, limit: 50, offset: 0, sortBy: { column: "created_at", order: "desc" } })
+    });
+    if (!listResponse.ok) throw new Error("Could not list private backups.");
+    const objects = await listResponse.json();
+    return response((Array.isArray(objects) ? objects : [])
+      .filter(item => item.name && item.name.endsWith(".json"))
+      .map(item => ({
+        name: item.name,
+        path: prefix + "/" + item.name,
+        created_at: item.created_at || item.updated_at || null,
+        metadata: item.metadata || null
+      })));
+  }
+
+  if (path === "/api/admin/backups" && method === "POST") {
+    const books = await db(env, "clickers_books", {
+      query: ownerFilter(ownerId) + "&select=id,owner_id,slug,title,description,genre,cover_path,status,created_at,updated_at&order=created_at.asc"
+    });
+    const chapters = await db(env, "clickers_chapters", {
+      query: ownerFilter(ownerId) + "&select=id,owner_id,book_id,chapter_number,title,body,status,is_paid,created_at,updated_at&order=book_id.asc,chapter_number.asc"
+    });
+    const revisions = await db(env, "clickers_chapter_revisions", {
+      query: ownerFilter(ownerId) + "&select=id,owner_id,chapter_id,snapshot,created_at&order=created_at.asc"
+    });
+    const backup = {
+      format: "clickers-author-backup-v1",
+      created_at: new Date().toISOString(),
+      owner_id: ownerId,
+      books,
+      chapters,
+      revisions
+    };
+    const filename = "clickers-backup-" + new Date().toISOString().replace(/[:.]/g, "-") + ".json";
+    const objectPath = ownerId + "/backups/" + filename;
+    const encodedPath = objectPath.split("/").map(encodeURIComponent).join("/");
+    const upload = await fetch(env.SUPABASE_URL.replace(/\/+$/, "") + "/storage/v1/object/clickers-private/" + encodedPath, {
+      method: "POST",
+      headers: {
+        apikey: env.SUPABASE_SECRET_KEY,
+        authorization: "Bearer " + env.SUPABASE_SECRET_KEY,
+        "content-type": "application/json",
+        "x-upsert": "false"
+      },
+      body: JSON.stringify(backup)
+    });
+    if (!upload.ok) {
+      const detail = await upload.text();
+      throw new Error("Private backup upload failed: " + detail.slice(0, 180));
+    }
+    return response({ ok: true, name: filename, path: objectPath, created_at: backup.created_at, books: books.length, chapters: chapters.length }, 201);
+  }
+
+  if (path === "/api/admin/backups/restore" && method === "POST") {
+    const requestBody = await readJson(request);
+    const objectPath = typeof requestBody?.path === "string" ? requestBody.path : "";
+    if (!objectPath.startsWith(ownerId + "/backups/") || !objectPath.endsWith(".json") || objectPath.includes("..")) {
+      return response({ error: "Choose a valid backup belonging to your account." }, 400);
+    }
+    const encodedPath = objectPath.split("/").map(encodeURIComponent).join("/");
+    const download = await fetch(env.SUPABASE_URL.replace(/\/+$/, "") + "/storage/v1/object/clickers-private/" + encodedPath, {
+      headers: { apikey: env.SUPABASE_SECRET_KEY, authorization: "Bearer " + env.SUPABASE_SECRET_KEY }
+    });
+    if (!download.ok) return response({ error: "That backup could not be found." }, 404);
+    const backup = await download.json();
+    if (backup?.format !== "clickers-author-backup-v1" || backup.owner_id !== ownerId ||
+        !Array.isArray(backup.books) || !Array.isArray(backup.chapters)) {
+      return response({ error: "The backup file is invalid or belongs to another account." }, 400);
+    }
+    const bookIdMap = new Map();
+    const restoredBooks = [];
+    for (const original of backup.books) {
+      const rows = await db(env, "clickers_books", {
+        method: "POST", query: "select=id,slug,title,status",
+        body: {
+          owner_id: ownerId,
+          slug: slugify((original.slug || original.title || "restored") + "-restored-" + crypto.randomUUID().slice(0, 8)),
+          title: cleanText("Recovered copy — " + (original.title || "Untitled book"), 180),
+          description: cleanText(original.description, 5000),
+          genre: cleanText(original.genre, 80),
+          cover_path: cleanText(original.cover_path, 500),
+          status: "draft"
+        },
+        prefer: "return=representation"
+      });
+      if (rows?.[0]) {
+        bookIdMap.set(original.id, rows[0].id);
+        restoredBooks.push(rows[0]);
+      }
+    }
+    let restoredChapters = 0;
+    for (const original of backup.chapters) {
+      const newBookId = bookIdMap.get(original.book_id);
+      if (!newBookId) continue;
+      await db(env, "clickers_chapters", {
+        method: "POST", query: "select=id",
+        body: {
+          owner_id: ownerId,
+          book_id: newBookId,
+          chapter_number: original.chapter_number,
+          title: cleanText(original.title || "Untitled chapter", 180),
+          body: typeof original.body === "string" ? original.body.slice(0, 500000) : "",
+          status: "draft",
+          is_paid: original.is_paid === true
+        },
+        prefer: "return=minimal"
+      });
+      restoredChapters++;
+    }
+    return response({
+      ok: true,
+      mode: "restored-as-drafts",
+      books: restoredBooks.length,
+      chapters: restoredChapters,
+      message: "Recovered copies were added as drafts. Your existing books were not overwritten."
+    }, 201);
+  }
+
   return response({ error: "Not found." }, 404);
 }
 
