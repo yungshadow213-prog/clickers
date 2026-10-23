@@ -111,7 +111,7 @@ values (
   'clickers-private',
   false,
   52428800,
-  array['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'text/plain']
+  array['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'text/plain', 'application/json']
 )
 on conflict (id) do update
 set public = false,
