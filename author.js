@@ -409,7 +409,7 @@ $("importLibraryButton").addEventListener("click", async () => {
       const chapters = Array.isArray(source.chapters) ? source.chapters : [];
       for (let i = 0; i < chapters.length; i++) {
         const chapter = chapters[i];
-        const body = Array.isArray(chapter.paragraphs) ? chapter.paragraphs.join("\\n\\n") : String(chapter.body || "");
+        const body = Array.isArray(chapter.paragraphs) ? chapter.paragraphs.join("\n\n") : String(chapter.body || "");
         if (!body.trim()) continue;
         await api("/api/admin/books/" + encodeURIComponent(saved.id) + "/chapters", { method: "POST", body: JSON.stringify({ chapter_number: i + 1, title: chapter.title || "Chapter " + (i + 1), body, status: "published", is_paid: false }) });
       }
