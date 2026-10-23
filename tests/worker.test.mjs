@@ -253,3 +253,50 @@ test("backup recovery restores saved revisions against recovered chapter IDs", a
   assert.equal(revisionInsert.snapshot.book_id, newBookId);
   assert.equal(revisionInsert.snapshot.body, "Earlier text");
 });
+
+test("backup recovery can recover a deleted chapter from its orphaned revisions", async () => {
+  const oldBookId = "22222222-2222-4222-8222-222222222222";
+  const oldChapterId = "33333333-3333-4333-8333-333333333333";
+  const newBookId = "44444444-4444-4444-8444-444444444444";
+  const newChapterId = "55555555-5555-4555-8555-555555555555";
+  const insertedChapters = [];
+  const insertedRevisions = [];
+  const backup = {
+    format: "clickers-author-backup-v1",
+    owner_id: env.OWNER_USER_ID,
+    books: [{ id: oldBookId, slug: "test", title: "Test", description: "", genre: "Romance", cover_path: "", status: "published" }],
+    chapters: [],
+    revisions: [
+      { chapter_id: null, created_at: "2026-10-20T00:00:00Z", snapshot: { id: oldChapterId, owner_id: env.OWNER_USER_ID, book_id: oldBookId, chapter_number: 2, title: "Deleted chapter", body: "Recovered text", status: "published", is_paid: false } }
+    ]
+  };
+  globalThis.fetch = async (url, init = {}) => {
+    const parsed = new URL(String(url));
+    if (parsed.pathname === "/auth/v1/user") return new Response(JSON.stringify({ id: env.OWNER_USER_ID }), { status: 200 });
+    if (parsed.pathname.startsWith("/storage/v1/object/clickers-private/") && (init.method || "GET") === "GET") return new Response(JSON.stringify(backup), { status: 200 });
+    if (parsed.pathname === "/rest/v1/clickers_books" && init.method === "POST") return new Response(JSON.stringify([{ id: newBookId }]), { status: 201 });
+    if (parsed.pathname === "/rest/v1/clickers_chapters" && init.method === "POST") {
+      insertedChapters.push(JSON.parse(init.body));
+      return new Response(JSON.stringify([{ id: newChapterId }]), { status: 201 });
+    }
+    if (parsed.pathname === "/rest/v1/clickers_chapter_revisions" && init.method === "POST") {
+      insertedRevisions.push(JSON.parse(init.body));
+      return new Response(null, { status: 201 });
+    }
+    throw new Error("Unexpected URL " + parsed);
+  };
+  const result = await worker.fetch(new Request("https://api.example.workers.dev/api/admin/backups/restore", {
+    method: "POST",
+    headers: { origin: env.ALLOWED_ORIGIN, authorization: "Bearer owner-session", "content-type": "application/json" },
+    body: JSON.stringify({ path: env.OWNER_USER_ID + "/backups/deleted.json" })
+  }), env);
+  assert.equal(result.status, 201);
+  const data = await result.json();
+  assert.equal(data.chapters, 1);
+  assert.equal(data.revisions, 1);
+  assert.equal(insertedChapters[0].title, "Deleted chapter");
+  assert.equal(insertedChapters[0].body, "Recovered text");
+  assert.equal(insertedChapters[0].status, "draft");
+  assert.equal(insertedRevisions[0].chapter_id, newChapterId);
+  assert.equal(insertedRevisions[0].snapshot.id, newChapterId);
+});
