@@ -77,6 +77,25 @@ function ownerFilter(ownerId) {
   return "owner_id=eq." + encodeURIComponent(ownerId);
 }
 
+async function preventRemovingLastFreeChapter(env, ownerId, chapter, nextStatus, nextIsPaid) {
+  const remainsFree = nextStatus === "published" && nextIsPaid !== true;
+  if (chapter.status !== "published" || chapter.is_paid === true || remainsFree) return null;
+
+  const books = await db(env, "clickers_books", {
+    query: ownerFilter(ownerId) + "&id=eq." + chapter.book_id + "&select=status&limit=1"
+  });
+  if (!books?.length || books[0].status !== "published") return null;
+
+  const alternatives = await db(env, "clickers_chapters", {
+    query: ownerFilter(ownerId) + "&book_id=eq." + chapter.book_id +
+      "&id=neq." + chapter.id + "&status=eq.published&is_paid=eq.false&select=id&limit=1"
+  });
+  if (alternatives?.length) return null;
+  return response({
+    error: "This is the book's last published free chapter. Publish another free chapter or return the book to draft before changing or deleting this one."
+  }, 400);
+}
+
 function validateBook(body, partial = false) {
   const out = {};
   if (!partial || "title" in body) {
@@ -209,9 +228,18 @@ async function adminRoute(request, env, url, user) {
       query: ownerFilter(ownerId) + "&id=eq." + chapterMatch[1] + "&select=id,owner_id,book_id,chapter_number,title,body,status,is_paid"
     });
     if (!existing?.length) return response({ error: "Chapter not found." }, 404);
+    const current = existing[0];
+    const blocked = await preventRemovingLastFreeChapter(
+      env,
+      ownerId,
+      current,
+      parsed.value.status ?? current.status,
+      parsed.value.is_paid ?? current.is_paid
+    );
+    if (blocked) return blocked;
     await db(env, "clickers_chapter_revisions", {
       method: "POST", query: "select=id",
-      body: { owner_id: ownerId, chapter_id: existing[0].id, snapshot: existing[0] },
+      body: { owner_id: ownerId, chapter_id: current.id, snapshot: current },
       prefer: "return=minimal"
     });
     const rows = await db(env, "clickers_chapters", {
@@ -221,6 +249,13 @@ async function adminRoute(request, env, url, user) {
     return response(rows?.[0] || null);
   }
   if (chapterMatch && method === "DELETE") {
+    const existing = await db(env, "clickers_chapters", {
+      query: ownerFilter(ownerId) + "&id=eq." + chapterMatch[1] + "&select=id,book_id,status,is_paid&limit=1"
+    });
+    if (!existing?.length) return response({ error: "Chapter not found." }, 404);
+    const current = existing[0];
+    const blocked = await preventRemovingLastFreeChapter(env, ownerId, current, "draft", true);
+    if (blocked) return blocked;
     const rows = await db(env, "clickers_chapters", {
       method: "DELETE", query: ownerFilter(ownerId) + "&id=eq." + chapterMatch[1] + "&select=id", prefer: "return=representation"
     });
