@@ -162,10 +162,15 @@ async function loadPublishedAuthorBooks(){
     };
    }catch(error){return null;}
   }));
-  const existing=new Set(books.map(book=>String(book.title||"").trim().toLowerCase()));
+  const existing=new Map(books.map((book,index)=>[String(book.title||"").trim().toLowerCase(),index]));
   for(const book of additions.filter(Boolean)){
    const titleKey=book.title.trim().toLowerCase();
-   if(!existing.has(titleKey)){books.push(book);existing.add(titleKey);}
+   if(existing.has(titleKey)){
+    const index=existing.get(titleKey), original=books[index];
+    books[index]={...original,...book,id:original.id,apiId:book.apiId};
+   }else{
+    existing.set(titleKey,books.length);books.push(book);
+   }
   }
   renderFeatured();renderFilters();renderBooks();
   const params=new URLSearchParams(location.search),requested=params.get("book");
