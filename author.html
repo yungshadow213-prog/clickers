@@ -31,9 +31,9 @@
 <div class="eyebrow">Your stories, in one place</div><h1>Author studio</h1><p class="muted">Create a book, write chapters, save drafts, publish free chapters, and review previous saved versions. Unpublished and paid chapters are never returned by the public API.</p>
 <div class="layout">
 <aside class="panel book-panel">
-<div class="panel-head"><h2>Your library</h2><button id="newBookButton" class="button" type="button">+ New</button></div><p class="muted">Bring existing public-library books into this editor.</p><button id="importLibraryButton" class="button outline" type="button" style="width:100%;margin-bottom:14px">Import existing library</button>
+<div class="panel-head"><h2>Your library</h2><button id="newBookButton" class="button" type="button">+ New</button></div><p class="muted">Edit books already on the reading site: import them here first, then select a title in the list below. Select a chapter to edit its text.</p><button id="importLibraryButton" class="button outline" type="button" style="width:100%;margin-bottom:14px">Import public books to edit</button><div class="hint" style="margin-bottom:14px"><strong>How to edit:</strong> Import once → click the book title under “Your library” → edit its details or select a chapter. Imported books appear in this list.</div>
 <div id="bookList" class="stack"><div class="empty">Loading your books…</div></div>
-<p class="footer-note">Private drafts are stored in Supabase, not in the public <code>books.js</code> file.</p>
+<p class="footer-note">Books shown below are editable copies in Author Studio. Saving changes here updates the Author Studio version shown on the reading site.</p>
 </aside>
 <section class="panel editor-panel">
 <div id="noBookState" class="empty">Choose a book or create one to start writing.</div>
