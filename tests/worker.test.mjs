@@ -300,3 +300,59 @@ test("backup recovery can recover a deleted chapter from its orphaned revisions"
   assert.equal(insertedRevisions[0].chapter_id, newChapterId);
   assert.equal(insertedRevisions[0].snapshot.id, newChapterId);
 });
+
+test("cannot turn the last free chapter of a published book into a paid chapter", async () => {
+  const chapterId = "33333333-3333-4333-8333-333333333333";
+  const bookId = "22222222-2222-4222-8222-222222222222";
+  let chapterMutation = false;
+  let revisionMutation = false;
+  globalThis.fetch = async (url, init = {}) => {
+    const parsed = new URL(String(url));
+    if (parsed.pathname === "/auth/v1/user") return new Response(JSON.stringify({ id: env.OWNER_USER_ID }), { status: 200 });
+    if (parsed.pathname === "/rest/v1/clickers_chapters" && parsed.searchParams.get("id") === "eq." + chapterId && !init.method) {
+      return new Response(JSON.stringify([{ id: chapterId, book_id: bookId, status: "published", is_paid: false, chapter_number: 1, title: "Only free chapter", body: "Text" }]), { status: 200 });
+    }
+    if (parsed.pathname === "/rest/v1/clickers_books") return new Response(JSON.stringify([{ status: "published" }]), { status: 200 });
+    if (parsed.pathname === "/rest/v1/clickers_chapters" && parsed.searchParams.get("id") === "neq." + chapterId) {
+      return new Response(JSON.stringify([]), { status: 200 });
+    }
+    if (parsed.pathname === "/rest/v1/clickers_chapter_revisions" && init.method === "POST") revisionMutation = true;
+    if (parsed.pathname === "/rest/v1/clickers_chapters" && init.method === "PATCH") chapterMutation = true;
+    throw new Error("Unexpected URL " + parsed + " method=" + init.method);
+  };
+  const result = await worker.fetch(new Request("https://api.example.workers.dev/api/admin/chapters/" + chapterId, {
+    method: "PATCH",
+    headers: { origin: env.ALLOWED_ORIGIN, authorization: "Bearer owner-session", "content-type": "application/json" },
+    body: JSON.stringify({ is_paid: true })
+  }), env);
+  assert.equal(result.status, 400);
+  assert.match((await result.json()).error, /last published free chapter/i);
+  assert.equal(chapterMutation, false);
+  assert.equal(revisionMutation, false);
+});
+
+test("cannot delete the last free chapter of a published book", async () => {
+  const chapterId = "33333333-3333-4333-8333-333333333333";
+  const bookId = "22222222-2222-4222-8222-222222222222";
+  let chapterDeleted = false;
+  globalThis.fetch = async (url, init = {}) => {
+    const parsed = new URL(String(url));
+    if (parsed.pathname === "/auth/v1/user") return new Response(JSON.stringify({ id: env.OWNER_USER_ID }), { status: 200 });
+    if (parsed.pathname === "/rest/v1/clickers_chapters" && parsed.searchParams.get("id") === "eq." + chapterId && !init.method) {
+      return new Response(JSON.stringify([{ id: chapterId, book_id: bookId, status: "published", is_paid: false }]), { status: 200 });
+    }
+    if (parsed.pathname === "/rest/v1/clickers_books") return new Response(JSON.stringify([{ status: "published" }]), { status: 200 });
+    if (parsed.pathname === "/rest/v1/clickers_chapters" && parsed.searchParams.get("id") === "neq." + chapterId) {
+      return new Response(JSON.stringify([]), { status: 200 });
+    }
+    if (parsed.pathname === "/rest/v1/clickers_chapters" && init.method === "DELETE") chapterDeleted = true;
+    throw new Error("Unexpected URL " + parsed + " method=" + init.method);
+  };
+  const result = await worker.fetch(new Request("https://api.example.workers.dev/api/admin/chapters/" + chapterId, {
+    method: "DELETE",
+    headers: { origin: env.ALLOWED_ORIGIN, authorization: "Bearer owner-session" }
+  }), env);
+  assert.equal(result.status, 400);
+  assert.match((await result.json()).error, /last published free chapter/i);
+  assert.equal(chapterDeleted, false);
+});
