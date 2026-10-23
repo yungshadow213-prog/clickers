@@ -409,7 +409,7 @@ $("importLibraryButton").addEventListener("click", async () => {
       const scriptText = await response.text();
       const match = scriptText.match(/window\.READING_ROOM_BOOKS\s*=\s*(\[[\s\S]*\])\s*;?\s*$/);
       if (!match) throw new Error("The public catalogue could not be read. Reload Author Studio and try again.");
-      library = (new Function("window", scriptText + "\nreturn window.READING_ROOM_BOOKS;"))(window);
+      library = JSON.parse(match[1]);
     }
     if (!library.length) throw new Error("The public catalogue loaded but contains no books.");
     status("globalStatus", "Found " + library.length + " public books. Importing and checking chapters…");
