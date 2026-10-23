@@ -45,3 +45,11 @@ for (const book of books) {
   assert.ok(page.includes('href="../../index.html?book=' + encodeURIComponent(book.id) + '"'), book.title + " landing page needs a reading link");
 }
 console.log("Site validation passed:", books.length, "books,", chapterCount, "chapters, and", books.length, "story landing pages.");
+
+const authorHtml = fs.readFileSync("author.html", "utf8");
+const authorScript = fs.readFileSync("author.js", "utf8");
+assert.match(authorHtml, /@media\(max-width:820px\)/, "Author studio must have a mobile layout");
+assert.match(authorHtml, /id="chapterBody"/, "Author studio must expose the chapter editor");
+assert.match(authorHtml, /id="backupButton"/, "Author studio must expose private backups");
+assert.match(authorScript, /Publish at least one free chapter before publishing this book/, "Books must not be publishable without at least one published free chapter");
+assert.match(authorScript, /async function loadRevisions/, "Author studio must retain chapter revision access");
