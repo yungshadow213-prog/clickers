@@ -74,7 +74,7 @@ function renderBooks() {
   $("metricBooks").textContent = String(state.books.length);
   $("metricPublished").textContent = String(published);
   $("metricDrafts").textContent = String(state.books.length - published);
-  $("metricChapters").textContent = state.books.reduce((sum, book) => sum + Number(book.chapter_count || book.chapters_count || 0), 0) || "—";
+  $("metricUpdated").textContent = state.books.some(book => book.updated_at) ? new Date(state.books.map(book => book.updated_at).filter(Boolean).sort().at(-1)).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "No saves yet";
   const query = ($("bookSearch")?.value || "").trim().toLowerCase();
   const filter = $("bookStatusFilter")?.value || "all";
   const visible = state.books.filter(book =>
