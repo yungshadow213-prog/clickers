@@ -206,13 +206,13 @@ async function loadPublishedAuthorBooks(){
  const apiUrl=window.CLICKERS_CONFIG&&window.CLICKERS_CONFIG.apiUrl;
  if(!apiUrl||apiUrl.includes("YOUR-CLICKERS-WORKER"))return;
  try{
-  const response=await fetch(apiUrl.replace(/\\/+$/,"")+"/api/books",{cache:"no-store"});
+  const response=await fetch(apiUrl.replace(/\/+$/,"")+"/api/books",{cache:"no-store"});
   if(!response.ok)return;
   const published=await response.json();
   if(!Array.isArray(published)||!published.length)return;
   const additions=await Promise.all(published.map(async item=>{
    try{
-    const chapterResponse=await fetch(apiUrl.replace(/\\/+$/,"")+"/api/books/"+encodeURIComponent(item.id)+"/chapters",{cache:"no-store"});
+    const chapterResponse=await fetch(apiUrl.replace(/\/+$/,"")+"/api/books/"+encodeURIComponent(item.id)+"/chapters",{cache:"no-store"});
     if(!chapterResponse.ok)return null;
     const chapters=await chapterResponse.json();
     if(!Array.isArray(chapters)||!chapters.length)return null;
@@ -220,7 +220,7 @@ async function loadPublishedAuthorBooks(){
      id:"author-"+item.id,apiId:item.id,title:item.title||"Untitled story",
      author:item.author||"Yung Dharick",genre:item.genre||"Other",label:item.genre||"New story",
      description:item.description||"A new story from Clickers.",cover:item.cover_path||"",
-     tone:"",chapters:chapters.map(ch=>({title:ch.title||("Chapter "+ch.chapter_number),paragraphs:String(ch.body||"").split(/\\n\\s*\\n/).map(p=>p.trim()).filter(Boolean)}))
+     tone:"",chapters:chapters.map(ch=>({title:ch.title||("Chapter "+ch.chapter_number),paragraphs:String(ch.body||"").split(/\n\s*\n/).map(p=>p.trim()).filter(Boolean)}))
     };
    }catch(error){return null;}
   }));
