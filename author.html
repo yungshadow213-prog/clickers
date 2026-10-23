@@ -31,7 +31,7 @@
 <div class="eyebrow">Your stories, in one place</div><h1>Author studio</h1><p class="muted">Create a book, write chapters, save drafts, publish free chapters, and review previous saved versions. Unpublished and paid chapters are never returned by the public API.</p>
 <div class="layout">
 <aside class="panel book-panel">
-<div class="panel-head"><h2>Your library</h2><button id="newBookButton" class="button" type="button">+ New</button></div>
+<div class="panel-head"><h2>Your library</h2><button id="newBookButton" class="button" type="button">+ New</button></div><p class="muted">Bring existing public-library books into this editor.</p><button id="importLibraryButton" class="button outline" type="button" style="width:100%;margin-bottom:14px">Import existing library</button>
 <div id="bookList" class="stack"><div class="empty">Loading your books…</div></div>
 <p class="footer-note">Private drafts are stored in Supabase, not in the public <code>books.js</code> file.</p>
 </aside>
@@ -42,7 +42,9 @@
 <form id="bookForm">
 <div class="field"><label for="bookTitle">Book title</label><input id="bookTitle" maxlength="180" required></div>
 <div class="field"><label for="bookSlug">URL slug</label><input id="bookSlug" maxlength="80" placeholder="my-story"></div>
-<div class="split"><div class="field"><label for="bookGenre">Genre</label><input id="bookGenre" maxlength="80"></div><div class="field"><label for="bookCover">Cover path (optional)</label><input id="bookCover" maxlength="500" placeholder="assets/my-cover.jpg"></div></div>
+<div class="split"><div class="field"><label for="bookGenre">Genre</label><input id="bookGenre" maxlength="80"></div><div class="field"><label for="bookCover">Cover image URL / path</label><input id="bookCover" maxlength="1000" placeholder="Upload an image or paste a URL"></div></div>
+<div class="field"><label for="bookCoverFile">Upload cover image</label><input id="bookCoverFile" type="file" accept="image/jpeg,image/png,image/webp,image/avif"><p class="muted">JPG, PNG, WebP or AVIF · up to 5 MB.</p><img id="bookCoverPreview" alt="Cover preview" class="hidden" style="width:130px;max-height:190px;object-fit:cover;border:1px solid var(--line);border-radius:8px"></div>
+<div class="field"><label for="bookExtraImages">Additional story images (optional)</label><input id="bookExtraImages" type="file" accept="image/jpeg,image/png,image/webp,image/avif" multiple><div id="bookExtraImageList" class="muted">No additional images selected.</div></div>
 <div class="field"><label for="bookDescription">Synopsis</label><textarea id="bookDescription" rows="3" maxlength="5000"></textarea></div>
 <div class="actions"><button class="button" type="submit">Save book</button><button class="button outline" id="publishBookButton" type="button">Publish book</button><button class="button danger" id="deleteBookButton" type="button">Delete book</button></div>
 <p id="bookStatus" class="status" role="status" aria-live="polite"></p>
