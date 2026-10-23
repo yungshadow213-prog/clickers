@@ -181,6 +181,13 @@ function newChapter() {
 }
 async function saveBook(forceStatus = null) {
   const title = $("bookTitle").value.trim();
+  const coverFile = $("bookCoverFile").files && $("bookCoverFile").files[0];
+  if (coverFile) {
+    status("bookStatus", "Uploading cover image…");
+    $("bookCover").value = await uploadImage(coverFile);
+    $("bookCoverPreview").src = $("bookCover").value;
+    $("bookCoverPreview").classList.remove("hidden");
+  }
   const payload = {
     title,
     slug: $("bookSlug").value.trim() || title,
