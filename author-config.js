@@ -6,5 +6,5 @@
 window.CLICKERS_CONFIG = {
   supabaseUrl: "https://jlqyusgaauovyksksywh.supabase.co",
   supabasePublishableKey: "sb_publishable_qooRe6Fy4elPkozXMlcniw_dhaJwkG3",
-  apiUrl: "https://YOUR-CLICKERS-WORKER.workers.dev"
+  apiUrl: "https://clickers.rayyung713.workers.dev"
 };
