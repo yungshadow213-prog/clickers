@@ -334,11 +334,12 @@ async function adminRoute(request, env, url, user) {
         restoredBooks.push(rows[0]);
       }
     }
+    const chapterIdMap = new Map();
     let restoredChapters = 0;
     for (const original of backup.chapters) {
       const newBookId = bookIdMap.get(original.book_id);
       if (!newBookId) continue;
-      await db(env, "clickers_chapters", {
+      const rows = await db(env, "clickers_chapters", {
         method: "POST", query: "select=id",
         body: {
           owner_id: ownerId,
@@ -349,16 +350,41 @@ async function adminRoute(request, env, url, user) {
           status: "draft",
           is_paid: original.is_paid === true
         },
+        prefer: "return=representation"
+      });
+      if (rows?.[0]?.id) {
+        chapterIdMap.set(original.id, { id: rows[0].id, book_id: newBookId });
+        restoredChapters++;
+      }
+    }
+    let restoredRevisions = 0;
+    for (const original of Array.isArray(backup.revisions) ? backup.revisions : []) {
+      const restoredChapter = chapterIdMap.get(original.chapter_id);
+      if (!restoredChapter || !original.snapshot || typeof original.snapshot !== "object") continue;
+      const snapshot = {
+        ...original.snapshot,
+        id: restoredChapter.id,
+        owner_id: ownerId,
+        book_id: restoredChapter.book_id
+      };
+      await db(env, "clickers_chapter_revisions", {
+        method: "POST", query: "select=id",
+        body: {
+          owner_id: ownerId,
+          chapter_id: restoredChapter.id,
+          snapshot
+        },
         prefer: "return=minimal"
       });
-      restoredChapters++;
+      restoredRevisions++;
     }
     return response({
       ok: true,
       mode: "restored-as-drafts",
       books: restoredBooks.length,
       chapters: restoredChapters,
-      message: "Recovered copies were added as drafts. Your existing books were not overwritten."
+      revisions: restoredRevisions,
+      message: "Recovered copies were added as drafts. Saved revisions for recovered chapters were restored too. Your existing books were not overwritten."
     }, 201);
   }
 
