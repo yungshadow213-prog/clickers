@@ -155,7 +155,7 @@ async function adminRoute(request, env, url, user) {
     if (file.size < 1 || file.size > 5 * 1024 * 1024) return response({ error: "Images must be between 1 byte and 5 MB." }, 400);
     const ext = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/avif": "avif" }[file.type];
     const objectPath = ownerId + "/" + crypto.randomUUID() + "." + ext;
-    const base = env.SUPABASE_URL.replace(/\\/+$/, "");
+    const base = env.SUPABASE_URL.replace(/\/+$/, "");
     const upload = await fetch(base + "/storage/v1/object/clickers-book-images/" + objectPath.split("/").map(encodeURIComponent).join("/"), {
       method: "POST",
       headers: { apikey: env.SUPABASE_SECRET_KEY, authorization: "Bearer " + env.SUPABASE_SECRET_KEY, "content-type": file.type, "x-upsert": "false" },
