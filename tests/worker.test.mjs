@@ -156,3 +156,50 @@ test("backup upload and restore never send a secret key as a Bearer token", asyn
     assert.equal(call.headers.authorization, undefined);
   }
 });
+
+test("book cannot be published through the API before it has a published free chapter", async () => {
+  const calls = [];
+  globalThis.fetch = async (url, init = {}) => {
+    const parsed = new URL(String(url));
+    calls.push({ url: parsed, init });
+    if (parsed.pathname === "/auth/v1/user") {
+      return new Response(JSON.stringify({ id: env.OWNER_USER_ID }), { status: 200 });
+    }
+    if (parsed.pathname === "/rest/v1/clickers_chapters") {
+      return new Response(JSON.stringify([]), { status: 200 });
+    }
+    throw new Error("Unexpected URL " + parsed);
+  };
+  const result = await worker.fetch(new Request(
+    "https://api.example.workers.dev/api/admin/books/22222222-2222-4222-8222-222222222222",
+    {
+      method: "PATCH",
+      headers: { origin: env.ALLOWED_ORIGIN, authorization: "Bearer owner-session", "content-type": "application/json" },
+      body: JSON.stringify({ status: "published" })
+    }
+  ), env);
+  assert.equal(result.status, 400);
+  assert.match((await result.json()).error, /at least one free chapter/i);
+  assert.equal(calls.some(call => call.url.pathname === "/rest/v1/clickers_books" && call.init.method === "PATCH"), false);
+});
+
+test("book creation cannot bypass the draft-first publishing flow", async () => {
+  let bookInsertCalled = false;
+  globalThis.fetch = async (url, init = {}) => {
+    const parsed = new URL(String(url));
+    if (parsed.pathname === "/auth/v1/user") {
+      return new Response(JSON.stringify({ id: env.OWNER_USER_ID }), { status: 200 });
+    }
+    if (parsed.pathname === "/rest/v1/clickers_books" && init.method === "POST") {
+      bookInsertCalled = true;
+    }
+    throw new Error("Unexpected URL " + parsed);
+  };
+  const result = await worker.fetch(new Request("https://api.example.workers.dev/api/admin/books", {
+    method: "POST",
+    headers: { origin: env.ALLOWED_ORIGIN, authorization: "Bearer owner-session", "content-type": "application/json" },
+    body: JSON.stringify({ title: "Bypass", status: "published" })
+  }), env);
+  assert.equal(result.status, 400);
+  assert.equal(bookInsertCalled, false);
+});
