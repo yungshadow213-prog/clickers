@@ -229,6 +229,14 @@ async function deleteChapter() {
 async function toggleBookPublish() {
   if (!state.book?.id) return;
   const next = state.book.status === "published" ? "draft" : "published";
+  if (next === "published") {
+    const hasFreePublishedChapter = state.chapters.some(chapter =>
+      chapter.status === "published" && chapter.is_paid !== true
+    );
+    if (!hasFreePublishedChapter) {
+      throw new Error("Publish at least one free chapter before publishing this book. Paid-chapter delivery is not available yet.");
+    }
+  }
   await saveBook(next);
   status("bookStatus", next === "published" ? "Book published." : "Book returned to draft.", "success");
 }
