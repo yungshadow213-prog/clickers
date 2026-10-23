@@ -58,7 +58,7 @@ function saveProgress(){try{localStorage.setItem(progressKey,JSON.stringify(prog
 function showToast(message){$("toast").textContent=message;$("toast").classList.add("show");clearTimeout(toastTimer);toastTimer=setTimeout(()=>$("toast").classList.remove("show"),2300);}
 function getProgress(book){const p=progress[book.id];return p&&Number.isInteger(p.chapter)?Math.max(0,Math.min(p.chapter,Math.max(0,book.chapters.length-1))):0;}
 function renderFeatured(){
- const book=books[0];if(!book)return;
+ const book=books.find(item=>String(item.id||"").startsWith("author-"))||books[0];if(!book)return;
  const title=$("featuredTitle"),genre=$("featuredGenre"),description=$("featuredDescription"),author=$("featuredAuthor"),cover=$("featuredCover"),button=$("featuredRead");
  if(title)title.textContent=book.title||"Featured story";
  if(genre)genre.textContent=book.label||book.genre||"Novel";
@@ -167,7 +167,7 @@ async function loadPublishedAuthorBooks(){
    const titleKey=book.title.trim().toLowerCase();
    if(!existing.has(titleKey)){books.push(book);existing.add(titleKey);}
   }
-  renderFilters();renderBooks();
+  renderFeatured();renderFilters();renderBooks();
   const params=new URLSearchParams(location.search),requested=params.get("book");
   if(requested&&!activeBook&&books.some(book=>book.id===requested)){
    openBook(requested,false);
