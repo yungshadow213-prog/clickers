@@ -11,7 +11,8 @@ create table if not exists public.clickers_books (
   status text not null default 'draft' check (status in ('draft', 'published')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique (owner_id, slug)
+  unique (owner_id, slug),
+  unique (id, owner_id)
 );
 
 create table if not exists public.clickers_chapters (
