@@ -396,33 +396,60 @@ $("bookExtraImages").addEventListener("change", () => {
   $("bookExtraImageList").textContent = [...saved, ...files.map(file => "Ready to upload: " + file.name + " · " + Math.ceil(file.size / 1024) + " KB")].join(" | ") || "No additional images selected.";
 });
 $("importLibraryButton").addEventListener("click", async () => {
-  const library = Array.isArray(window.READING_ROOM_BOOKS) ? window.READING_ROOM_BOOKS : [];
-  if (!library.length) { status("globalStatus", "The public library catalogue did not load.", "error"); return; }
-  if (!confirm("Import " + library.length + " public books into your editable author workspace? Existing books with matching slugs will be skipped.")) return;
-  const button = $("importLibraryButton"); button.disabled = true;
-  let imported = 0, skipped = 0;
+  const button = $("importLibraryButton");
+  button.disabled = true;
+  status("globalStatus", "Checking the public catalogue…");
+  let imported = 0, repaired = 0, skipped = 0;
   try {
+    let library = Array.isArray(window.READING_ROOM_BOOKS) ? window.READING_ROOM_BOOKS : [];
+    if (!library.length) {
+      status("globalStatus", "Loading the public catalogue…");
+      const response = await fetch("./books.js", { cache: "no-store" });
+      if (!response.ok) throw new Error("Could not load books.js (" + response.status + ").");
+      const scriptText = await response.text();
+      const match = scriptText.match(/window\.READING_ROOM_BOOKS\s*=\s*(\[[\s\S]*\])\s*;?\s*$/);
+      if (!match) throw new Error("The public catalogue could not be read. Reload Author Studio and try again.");
+      library = (new Function("window", scriptText + "\nreturn window.READING_ROOM_BOOKS;"))(window);
+    }
+    if (!library.length) throw new Error("The public catalogue loaded but contains no books.");
+    status("globalStatus", "Found " + library.length + " public books. Importing and checking chapters…");
+    await loadBooks();
     for (const source of library) {
       const slug = String(source.id || source.title).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 80) || "story";
-      if (state.books.some(book => book.slug === slug)) { skipped++; continue; }
-      const saved = await api("/api/admin/books", { method: "POST", body: JSON.stringify({ title: source.title, slug, genre: source.genre || source.label || "", description: source.description || "", cover_path: source.cover || "" }) });
+      let saved = state.books.find(book => book.slug === slug);
+      const wasExisting = Boolean(saved);
+      if (!saved) {
+        saved = await api("/api/admin/books", { method: "POST", body: JSON.stringify({ title: source.title, slug, genre: source.genre || source.label || "", description: source.description || "", cover_path: source.cover || "" }) });
+        imported++;
+      }
       const chapters = Array.isArray(source.chapters) ? source.chapters : [];
+      const existingChapters = await api("/api/admin/books/" + encodeURIComponent(saved.id) + "/chapters");
+      const existingNumbers = new Set(existingChapters.map(chapter => Number(chapter.chapter_number)));
+      let addedForBook = 0;
       for (let i = 0; i < chapters.length; i++) {
         const chapter = chapters[i];
         const body = Array.isArray(chapter.paragraphs) ? chapter.paragraphs.join("\n\n") : String(chapter.body || "");
-        if (!body.trim()) continue;
+        if (!body.trim() || existingNumbers.has(i + 1)) continue;
         await api("/api/admin/books/" + encodeURIComponent(saved.id) + "/chapters", { method: "POST", body: JSON.stringify({ chapter_number: i + 1, title: chapter.title || "Chapter " + (i + 1), body, status: "published", is_paid: false }) });
+        addedForBook++;
       }
-      if (chapters.length) await api("/api/admin/books/" + encodeURIComponent(saved.id), { method: "PATCH", body: JSON.stringify({ status: "published" }) });
-      imported++;
-      status("globalStatus", "Imported " + imported + " of " + library.length + " books…");
+      if (chapters.length && saved.status !== "published") {
+        await api("/api/admin/books/" + encodeURIComponent(saved.id), { method: "PATCH", body: JSON.stringify({ status: "published" }) });
+      }
+      if (wasExisting) {
+        if (addedForBook) repaired++;
+        else skipped++;
+      }
+      status("globalStatus", "Checking " + (imported + repaired + skipped) + " of " + library.length + " books…");
     }
     await loadBooks();
-    status("globalStatus", "Import complete: " + imported + " imported, " + skipped + " already existed. Edit the imported books and chapters here.", "success");
+    status("globalStatus", "Catalogue import finished: " + imported + " new books, " + repaired + " existing books repaired, " + skipped + " already complete. Select a title on the left to edit it.", "success");
   } catch (error) {
-    status("globalStatus", "Import stopped after " + imported + " book(s): " + error.message, "error");
-    await loadBooks();
-  } finally { button.disabled = false; }
+    status("globalStatus", "Import failed: " + (error?.message || "Unknown error"), "error");
+    try { await loadBooks(); } catch {}
+  } finally {
+    button.disabled = false;
+  }
 });
 $("loginForm").addEventListener("submit", signIn);
 $("signOutButton").addEventListener("click", async () => {
