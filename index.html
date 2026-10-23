@@ -115,12 +115,13 @@ footer{background:#29202b;color:#f4dfe7;padding:27px 0}.foot span:last-child{col
 <section class="about" id="about"><div class="wrap about-inner"><div><h2>Made for the love of a good story.</h2><p>Clickers is an independent home for original fiction, with new stories added over time. Read in your browser, adjust the text to suit you, save your place on this device, and follow a book-specific link when you want to share a story with someone.</p></div><a class="button outline" href="#library">Browse the books ↗</a></div></section>
 </main><footer><div class="wrap foot"><span>© <span id="year"></span> Clickers Reading Room · Original fiction</span><span>Made for the next chapter. ♡</span></div></footer>
 <section class="reader" id="reader" role="dialog" aria-modal="true" aria-label="Book reader" aria-hidden="true"><div class="readerbar"><button id="closeReader" type="button">← Library</button><div class="reader-title" id="readerTopTitle">Reading</div><div class="reader-tools"><button id="smaller" type="button" aria-label="Decrease text size">A−</button><button id="larger" type="button" aria-label="Increase text size">A+</button><button id="theme" type="button" aria-label="Toggle dark reading theme">◐</button><select id="chapterSelect" aria-label="Choose a chapter" title="Choose a chapter"><option>Contents</option></select><button id="downloadBook" type="button">Download .txt</button><button id="shareBook" type="button">Share</button></div></div><article class="reader-body"><div class="reader-kicker" id="readerGenre">Now reading</div><h1 id="readerHeading"></h1><div class="chapter-subtitle" id="chapterSubtitle"></div><div class="reader-content" id="readerContent"></div><div class="reader-controls"><button id="prevChapter" type="button">← Previous</button><span id="chapterCount" class="chapter-count" aria-live="polite"></span><button id="nextChapter" type="button">Next →</button></div></article></section><div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="./author-config.js"></script>
 <script src="./books.js"></script>
 <script>
 (function(){
 "use strict";
 const $=id=>document.getElementById(id);
-const books=Array.isArray(window.READING_ROOM_BOOKS)?window.READING_ROOM_BOOKS:[];
+let books=Array.isArray(window.READING_ROOM_BOOKS)?window.READING_ROOM_BOOKS:[];
 const progressKey="reading-room-progress-v1";
 let progress={};try{progress=JSON.parse(localStorage.getItem(progressKey)||"{}")||{};}catch(e){progress={};}
 let activeBook=null,chapterIndex=0,fontSize=20,dark=false,filter="All",previousFocus=null,toastTimer=null;
@@ -201,9 +202,47 @@ $("chapterSelect").addEventListener("change",()=>{const next=Number($("chapterSe
 $("downloadBook").addEventListener("click",()=>activeBook&&downloadBook(activeBook.id));
 $("shareBook").addEventListener("click",shareBook);
 document.addEventListener("keydown",e=>{if(!$("reader").classList.contains("open"))return;if(e.key==="Escape")closeReader();if(e.key==="ArrowRight"&&!e.target.matches("input,select,textarea,button"))$("nextChapter").click();if(e.key==="ArrowLeft"&&!e.target.matches("input,select,textarea,button"))$("prevChapter").click();});
+async function loadPublishedAuthorBooks(){
+ const apiUrl=window.CLICKERS_CONFIG&&window.CLICKERS_CONFIG.apiUrl;
+ if(!apiUrl||apiUrl.includes("YOUR-CLICKERS-WORKER"))return;
+ try{
+  const response=await fetch(apiUrl.replace(/\\/+$/,"")+"/api/books",{cache:"no-store"});
+  if(!response.ok)return;
+  const published=await response.json();
+  if(!Array.isArray(published)||!published.length)return;
+  const additions=await Promise.all(published.map(async item=>{
+   try{
+    const chapterResponse=await fetch(apiUrl.replace(/\\/+$/,"")+"/api/books/"+encodeURIComponent(item.id)+"/chapters",{cache:"no-store"});
+    if(!chapterResponse.ok)return null;
+    const chapters=await chapterResponse.json();
+    if(!Array.isArray(chapters)||!chapters.length)return null;
+    return {
+     id:"author-"+item.id,apiId:item.id,title:item.title||"Untitled story",
+     author:item.author||"Yung Dharick",genre:item.genre||"Other",label:item.genre||"New story",
+     description:item.description||"A new story from Clickers.",cover:item.cover_path||"",
+     tone:"",chapters:chapters.map(ch=>({title:ch.title||("Chapter "+ch.chapter_number),paragraphs:String(ch.body||"").split(/\\n\\s*\\n/).map(p=>p.trim()).filter(Boolean)}))
+    };
+   }catch(error){return null;}
+  }));
+  const existing=new Set(books.map(book=>String(book.title||"").trim().toLowerCase()));
+  for(const book of additions.filter(Boolean)){
+   if(!existing.has(book.title.trim().toLowerCase()))books.push(book);
+  }
+  renderFilters();renderBooks();
+  const params=new URLSearchParams(location.search),requested=params.get("book");
+  if(requested&&!activeBook&&books.some(book=>book.id===requested)){
+   openBook(requested,false);
+   const n=Number(params.get("chapter"));
+   if(Number.isInteger(n)&&n>0&&n<=activeBook.chapters.length){chapterIndex=n-1;renderChapter();}
+  }
+ }catch(error){
+  console.warn("Could not load newly published Clickers books.",error);
+ }
+}
 $("year").textContent=new Date().getFullYear();renderFilters();renderBooks();
 const params=new URLSearchParams(location.search),requested=params.get("book");
 if(requested&&books.some(b=>b.id===requested)){openBook(requested,false);const n=Number(params.get("chapter"));if(Number.isInteger(n)&&n>0&&n<=activeBook.chapters.length){chapterIndex=n-1;renderChapter();}}
+loadPublishedAuthorBooks();
 })();
 </script>
 </body>
