@@ -18,7 +18,16 @@ test("health check does not require credentials", async () => {
   assert.deepEqual(await result.json(), { ok: true, service: "clickers-private-api", authorApiReady: false, missingConfiguration: ["SUPABASE_URL", "SUPABASE_PUBLISHABLE_KEY", "SUPABASE_SECRET_KEY", "OWNER_USER_ID"] });
 });
 
-test("health check reports missing configuration names without exposing values", async () => {\n  const configured = { SUPABASE_URL: "https://example.supabase.co", SUPABASE_PUBLISHABLE_KEY: "publishable", SUPABASE_SECRET_KEY: "do-not-return-this", OWNER_USER_ID: "owner-id" };\n  const result = await worker.fetch(new Request("https://api.example.workers.dev/api/health"), configured);\n  const data = await result.json();\n  assert.equal(data.authorApiReady, true);\n  assert.deepEqual(data.missingConfiguration, []);\n  assert.equal(JSON.stringify(data).includes("do-not-return-this"), false);\n});\n\ntest("rejects browser requests from an unapproved origin", async () => {
+test("health check reports missing configuration names without exposing values", async () => {
+  const configured = { SUPABASE_URL: "https://example.supabase.co", SUPABASE_PUBLISHABLE_KEY: "publishable", SUPABASE_SECRET_KEY: "do-not-return-this", OWNER_USER_ID: "owner-id" };
+  const result = await worker.fetch(new Request("https://api.example.workers.dev/api/health"), configured);
+  const data = await result.json();
+  assert.equal(data.authorApiReady, true);
+  assert.deepEqual(data.missingConfiguration, []);
+  assert.equal(JSON.stringify(data).includes("do-not-return-this"), false);
+});
+
+test("rejects browser requests from an unapproved origin", async () => {
   const result = await worker.fetch(new Request("https://api.example.workers.dev/api/books", {
     headers: { origin: "https://not-clickers.example" }
   }), env);
