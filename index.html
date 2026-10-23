@@ -30,6 +30,7 @@ header{height:70px;display:flex;align-items:center;position:sticky;top:0;z-index
 .hero-copy-block{min-width:0}.featured-story{display:flex;align-items:center;gap:22px;padding:22px;border:1px solid var(--line);border-radius:20px;background:#fff;box-shadow:0 18px 45px #2027460c;min-width:0}.featured-cover-wrap{position:relative;flex:0 0 42%;max-width:205px}.featured-cover{display:block;width:100%;aspect-ratio:2/3;object-fit:cover;border-radius:9px;box-shadow:0 12px 24px #17203322;background:#e8eaf0}.featured-ribbon{position:absolute;top:10px;left:-6px;background:var(--brand);color:#fff;border-radius:0 5px 5px 0;padding:6px 9px;font-size:9px;font-weight:850;letter-spacing:.1em}.featured-info{min-width:0}.featured-genre{display:inline-block;color:var(--brand);background:var(--soft);border-radius:6px;padding:5px 8px;font-size:9px;font-weight:850;text-transform:uppercase;letter-spacing:.1em}.featured-info h2{font-size:clamp(21px,2.7vw,30px);line-height:1.12;letter-spacing:-.04em;margin:12px 0}.featured-info p{font-size:12px;line-height:1.7;color:var(--muted);display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden;margin:0 0 16px}.featured-author{font-size:11px;color:var(--muted);font-weight:750}.featured-story .hero-copy{margin:0}.featured-story .button{margin-top:18px}
 @media(max-width:720px){.featured-story{gap:16px;padding:15px;border-radius:15px}.featured-cover-wrap{flex-basis:39%;max-width:170px}.featured-info h2{font-size:21px}.featured-info p{-webkit-line-clamp:5;font-size:11px}.featured-author{font-size:10px}}
 @media(max-width:420px){.featured-story{align-items:flex-start;gap:12px;padding:12px}.featured-cover-wrap{flex-basis:38%}.featured-info h2{font-size:18px;margin:9px 0}.featured-info p{-webkit-line-clamp:4;font-size:10px}.featured-ribbon{font-size:8px;padding:5px 7px}}
+.story-image{margin:24px auto;max-width:620px;text-align:center}.story-image img{display:block;max-width:100%;max-height:70vh;object-fit:contain;margin:auto;border-radius:8px}.story-image figcaption{font:12px/1.5 Arial,sans-serif;color:var(--muted);margin-top:6px}
 </style>
 </head>
 <body>
@@ -108,7 +109,8 @@ function renderChapter(){
  $("readerHeading").textContent=ch?ch.title:activeBook.title;
  $("chapterSubtitle").textContent=ch?"Chapter "+(chapterIndex+1)+" of "+chapters.length:"";
  $("chapterSelect").value=String(chapterIndex);
- $("readerContent").innerHTML=ch&&Array.isArray(ch.paragraphs)?ch.paragraphs.map(p=>'<p>'+esc(p).replace(/\n/g,"<br>")+'</p>').join(""):'<div class="reader-message">The text for this book is not available in this edition yet.</div>';
+ const gallery=chapterIndex===0&&Array.isArray(activeBook.extraImages)?activeBook.extraImages.filter(item=>item&&typeof item.url==="string"&&item.url.startsWith("https://")).map(item=>'<figure class="story-image"><img src="'+esc(item.url)+'" alt="'+esc(item.name||activeBook.title)+'" loading="lazy"><figcaption>'+esc(item.name||"")+'</figcaption></figure>').join(""):"";
+ $("readerContent").innerHTML=gallery+(ch&&Array.isArray(ch.paragraphs)?ch.paragraphs.map(p=>'<p>'+esc(p).replace(/\n/g,"<br>")+'</p>').join(""):'<div class="reader-message">The text for this book is not available in this edition yet.</div>');
  $("chapterCount").textContent=chapters.length?(chapterIndex+1)+" of "+chapters.length+" chapters":"Text unavailable";
  $("prevChapter").disabled=!chapters.length||chapterIndex===0;$("nextChapter").disabled=!chapters.length||chapterIndex===chapters.length-1;
  if(chapters.length){progress[activeBook.id]={chapter:chapterIndex,finished:chapterIndex===chapters.length-1};saveProgress();}
@@ -157,15 +159,20 @@ async function loadPublishedAuthorBooks(){
     return {
      id:"author-"+item.id,apiId:item.id,title:item.title||"Untitled story",
      author:item.author||"Yung Dharick",genre:item.genre||"Other",label:item.genre||"New story",
-     description:item.description||"A new story from Clickers.",cover:item.cover_path||"",
+     description:item.description||"A new story from Clickers.",cover:item.cover_path||"",extraImages:Array.isArray(item.extra_images)?item.extra_images:[],
      tone:"",chapters:chapters.map(ch=>({title:ch.title||("Chapter "+ch.chapter_number),paragraphs:String(ch.body||"").split(/\n\s*\n/).map(p=>p.trim()).filter(Boolean)}))
     };
    }catch(error){return null;}
   }));
-  const existing=new Set(books.map(book=>String(book.title||"").trim().toLowerCase()));
+  const existing=new Map(books.map((book,index)=>[String(book.title||"").trim().toLowerCase(),index]));
   for(const book of additions.filter(Boolean)){
    const titleKey=book.title.trim().toLowerCase();
-   if(!existing.has(titleKey)){books.push(book);existing.add(titleKey);}
+   if(existing.has(titleKey)){
+    const index=existing.get(titleKey), original=books[index];
+    books[index]={...original,...book,id:original.id,apiId:book.apiId};
+   }else{
+    existing.set(titleKey,books.length);books.push(book);
+   }
   }
   renderFeatured();renderFilters();renderBooks();
   const params=new URLSearchParams(location.search),requested=params.get("book");

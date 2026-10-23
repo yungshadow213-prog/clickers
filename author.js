@@ -50,6 +50,16 @@ async function api(path, options = {}) {
   if (!response.ok) throw new Error(data?.error || "Request failed (" + response.status + ").");
   return data;
 }
+async function uploadImage(file) {
+  if (!file) return "";
+  if (!["image/jpeg","image/png","image/webp","image/avif"].includes(file.type)) throw new Error("Choose a JPG, PNG, WebP or AVIF image.");
+  if (file.size > 5 * 1024 * 1024) throw new Error("Images must be 5 MB or smaller.");
+  const form = new FormData(); form.append("file", file, file.name);
+  const result = await fetch(apiUrl("/api/admin/images"), { method: "POST", headers: { authorization: "Bearer " + state.session.access_token }, body: form, cache: "no-store" });
+  const data = await result.json().catch(() => ({}));
+  if (!result.ok || !data.url) throw new Error(data.error || "Image upload failed.");
+  return data.url;
+}
 function resetBookEditor() {
   state.book = null; state.chapters = []; state.chapter = null; state.isNewBook = false; state.isNewChapter = false;
   $("noBookState").classList.remove("hidden");
@@ -94,7 +104,11 @@ async function loadBook(id) {
     $("bookSlug").value = book.slug || "";
     $("bookGenre").value = book.genre || "";
     $("bookCover").value = book.cover_path || "";
+    $("bookCoverPreview").src = book.cover_path || ""; $("bookCoverPreview").classList.toggle("hidden", !book.cover_path);
     $("bookDescription").value = book.description || "";
+    $("bookCoverFile").value = "";
+    $("bookExtraImages").value = "";
+    $("bookExtraImageList").textContent = Array.isArray(book.extra_images) && book.extra_images.length ? book.extra_images.map(item => item.name || "Image").join(" · ") : "No additional images saved.";
     $("bookEditorHeading").textContent = book.title;
     $("bookStatusPill").textContent = book.status === "published" ? "Published" : "Draft";
     $("publishBookButton").textContent = book.status === "published" ? "Unpublish book" : "Publish book";
@@ -148,7 +162,7 @@ function newBook() {
   state.book = null; state.chapters = []; state.chapter = null; state.isNewBook = true; state.isNewChapter = false;
   $("noBookState").classList.add("hidden");
   $("bookEditor").classList.remove("hidden");
-  $("bookTitle").value = ""; $("bookSlug").value = ""; $("bookGenre").value = ""; $("bookCover").value = ""; $("bookDescription").value = "";
+  $("bookTitle").value = ""; $("bookSlug").value = ""; $("bookGenre").value = ""; $("bookCover").value = ""; $("bookDescription").value = ""; $("bookCoverPreview").removeAttribute("src"); $("bookCoverPreview").classList.add("hidden"); $("bookCoverFile").value = ""; $("bookExtraImages").value = ""; $("bookExtraImageList").textContent = "No additional images selected.";
   $("bookEditorHeading").textContent = "New book"; $("bookStatusPill").textContent = "Not saved";
   $("publishBookButton").textContent = "Publish book";
   $("chapterList").replaceChildren();
@@ -171,11 +185,27 @@ function newChapter() {
 }
 async function saveBook(forceStatus = null) {
   const title = $("bookTitle").value.trim();
+  const coverFile = $("bookCoverFile").files && $("bookCoverFile").files[0];
+  const currentExtraImages = Array.isArray(state.book?.extra_images) ? [...state.book.extra_images] : [];
+  const extraFiles = Array.from($("bookExtraImages").files || []);
+  if (extraFiles.length > 8) throw new Error("Upload up to 8 additional images per book.");
+  if (coverFile) {
+    status("bookStatus", "Uploading cover image…");
+    $("bookCover").value = await uploadImage(coverFile);
+    $("bookCoverPreview").src = $("bookCover").value;
+    $("bookCoverPreview").classList.remove("hidden");
+  }
+  const uploadedExtras = [];
+  for (const file of extraFiles) {
+    status("bookStatus", "Uploading additional image " + (uploadedExtras.length + 1) + " of " + extraFiles.length + "…");
+    uploadedExtras.push({ name: file.name, url: await uploadImage(file) });
+  }
   const payload = {
     title,
     slug: $("bookSlug").value.trim() || title,
     genre: $("bookGenre").value.trim(),
     cover_path: $("bookCover").value.trim(),
+    extra_images: [...currentExtraImages, ...uploadedExtras],
     description: $("bookDescription").value.trim()
   };
   if (forceStatus) payload.status = forceStatus;
@@ -356,6 +386,44 @@ async function startStudio() {
   }
 }
 
+$("bookCoverFile").addEventListener("change", () => {
+  const file = $("bookCoverFile").files && $("bookCoverFile").files[0];
+  if (file) { $("bookCoverPreview").src = URL.createObjectURL(file); $("bookCoverPreview").classList.remove("hidden"); }
+});
+$("bookExtraImages").addEventListener("change", () => {
+  const files = Array.from($("bookExtraImages").files || []);
+  const saved = Array.isArray(state.book?.extra_images) ? state.book.extra_images.map(item => "Saved: " + (item.name || "Image")) : [];
+  $("bookExtraImageList").textContent = [...saved, ...files.map(file => "Ready to upload: " + file.name + " · " + Math.ceil(file.size / 1024) + " KB")].join(" | ") || "No additional images selected.";
+});
+$("importLibraryButton").addEventListener("click", async () => {
+  const library = Array.isArray(window.READING_ROOM_BOOKS) ? window.READING_ROOM_BOOKS : [];
+  if (!library.length) { status("globalStatus", "The public library catalogue did not load.", "error"); return; }
+  if (!confirm("Import " + library.length + " public books into your editable author workspace? Existing books with matching slugs will be skipped.")) return;
+  const button = $("importLibraryButton"); button.disabled = true;
+  let imported = 0, skipped = 0;
+  try {
+    for (const source of library) {
+      const slug = String(source.id || source.title).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 80) || "story";
+      if (state.books.some(book => book.slug === slug)) { skipped++; continue; }
+      const saved = await api("/api/admin/books", { method: "POST", body: JSON.stringify({ title: source.title, slug, genre: source.genre || source.label || "", description: source.description || "", cover_path: source.cover || "" }) });
+      const chapters = Array.isArray(source.chapters) ? source.chapters : [];
+      for (let i = 0; i < chapters.length; i++) {
+        const chapter = chapters[i];
+        const body = Array.isArray(chapter.paragraphs) ? chapter.paragraphs.join("\n\n") : String(chapter.body || "");
+        if (!body.trim()) continue;
+        await api("/api/admin/books/" + encodeURIComponent(saved.id) + "/chapters", { method: "POST", body: JSON.stringify({ chapter_number: i + 1, title: chapter.title || "Chapter " + (i + 1), body, status: "published", is_paid: false }) });
+      }
+      if (chapters.length) await api("/api/admin/books/" + encodeURIComponent(saved.id), { method: "PATCH", body: JSON.stringify({ status: "published" }) });
+      imported++;
+      status("globalStatus", "Imported " + imported + " of " + library.length + " books…");
+    }
+    await loadBooks();
+    status("globalStatus", "Import complete: " + imported + " imported, " + skipped + " already existed. Edit the imported books and chapters here.", "success");
+  } catch (error) {
+    status("globalStatus", "Import stopped after " + imported + " book(s): " + error.message, "error");
+    await loadBooks();
+  } finally { button.disabled = false; }
+});
 $("loginForm").addEventListener("submit", signIn);
 $("signOutButton").addEventListener("click", async () => {
   await state.supabase?.auth.signOut();
