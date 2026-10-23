@@ -15,7 +15,16 @@ afterEach(() => { globalThis.fetch = originalFetch; });
 test("health check does not require credentials", async () => {
   const result = await worker.fetch(new Request("https://api.example.workers.dev/api/health"), {});
   assert.equal(result.status, 200);
-  assert.deepEqual(await result.json(), { ok: true, service: "clickers-private-api" });
+  assert.deepEqual(await result.json(), { ok: true, service: "clickers-private-api", authorApiReady: false, missingConfiguration: ["SUPABASE_URL", "SUPABASE_PUBLISHABLE_KEY", "SUPABASE_SECRET_KEY", "OWNER_USER_ID"] });
+});
+
+test("health check reports missing configuration names without exposing values", async () => {
+  const configured = { SUPABASE_URL: "https://example.supabase.co", SUPABASE_PUBLISHABLE_KEY: "publishable", SUPABASE_SECRET_KEY: "do-not-return-this", OWNER_USER_ID: "owner-id" };
+  const result = await worker.fetch(new Request("https://api.example.workers.dev/api/health"), configured);
+  const data = await result.json();
+  assert.equal(data.authorApiReady, true);
+  assert.deepEqual(data.missingConfiguration, []);
+  assert.equal(JSON.stringify(data).includes("do-not-return-this"), false);
 });
 
 test("rejects browser requests from an unapproved origin", async () => {

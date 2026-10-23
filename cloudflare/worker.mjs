@@ -30,14 +30,30 @@ async function readJson(request) {
   }
 }
 
+function missingConfig(env) {
+  return [
+    ["SUPABASE_URL", env.SUPABASE_URL],
+    ["SUPABASE_PUBLISHABLE_KEY", env.SUPABASE_PUBLISHABLE_KEY],
+    ["SUPABASE_SECRET_KEY", env.SUPABASE_SECRET_KEY],
+    ["OWNER_USER_ID", env.OWNER_USER_ID]
+  ].filter(([, value]) => !String(value || "").trim()).map(([name]) => name);
+}
 function configReady(env) {
-  return Boolean(env.SUPABASE_URL && env.SUPABASE_PUBLISHABLE_KEY && env.SUPABASE_SECRET_KEY && env.OWNER_USER_ID);
+  return missingConfig(env).length === 0;
+}
+function configurationError(env) {
+  const missing = missingConfig(env);
+  return {
+    error: missing.length
+      ? "The author API is not configured yet. Add the missing Cloudflare Worker setting(s): " + missing.join(", ") + "."
+      : "The author API is temporarily unavailable."
+  };
 }
 
 async function currentUser(request, env) {
   const authorization = request.headers.get("Authorization") || "";
   if (!authorization.startsWith("Bearer ")) return { error: response({ error: "Sign in to continue." }, 401) };
-  if (!configReady(env)) return { error: response({ error: "The author API is not configured yet." }, 503) };
+  if (!configReady(env)) return { error: response(configurationError(env), 503) };
 
   let authResponse;
   try {
@@ -517,10 +533,11 @@ export default {
       return response({ error: "Origin not allowed." }, 403, cors);
     }
     if (url.pathname === "/api/health" && request.method === "GET") {
-      return response({ ok: true, service: "clickers-private-api" }, 200, cors);
+      const missing = missingConfig(env);
+      return response({ ok: true, service: "clickers-private-api", authorApiReady: missing.length === 0, missingConfiguration: missing }, 200, cors);
     }
     if (!url.pathname.startsWith("/api/")) return response({ error: "Not found." }, 404, cors);
-    if (!configReady(env)) return response({ error: "The author API is not configured yet." }, 503, cors);
+    if (!configReady(env)) return response(configurationError(env), 503, cors);
 
     try {
       if (url.pathname === "/api/books" && request.method === "GET") {
