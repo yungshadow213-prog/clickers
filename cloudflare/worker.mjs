@@ -132,6 +132,9 @@ async function adminRoute(request, env, url, user) {
     if (!body) return response({ error: "Send valid JSON." }, 400);
     const parsed = validateBook(body);
     if (parsed.error) return response({ error: parsed.error }, 400);
+    if (parsed.value.status === "published") {
+      return response({ error: "Save the book as a draft, publish at least one free chapter, then publish the book." }, 400);
+    }
     const rows = await db(env, "clickers_books", {
       method: "POST", query: "select=id,slug,title,description,genre,cover_path,status,created_at,updated_at",
       body: { ...parsed.value, owner_id: ownerId }, prefer: "return=representation"
@@ -146,6 +149,14 @@ async function adminRoute(request, env, url, user) {
     const parsed = validateBook(body, true);
     if (parsed.error) return response({ error: parsed.error }, 400);
     if (!Object.keys(parsed.value).length) return response({ error: "There are no changes to save." }, 400);
+    if (parsed.value.status === "published") {
+      const freeChapters = await db(env, "clickers_chapters", {
+        query: ownerFilter(ownerId) + "&book_id=eq." + bookMatch[1] + "&status=eq.published&is_paid=eq.false&select=id&limit=1"
+      });
+      if (!freeChapters?.length) {
+        return response({ error: "Publish at least one free chapter before publishing this book. Paid-chapter delivery is not available yet." }, 400);
+      }
+    }
     const rows = await db(env, "clickers_books", {
       method: "PATCH", query: ownerFilter(ownerId) + "&id=eq." + bookMatch[1] + "&select=id,slug,title,description,genre,cover_path,status,created_at,updated_at",
       body: parsed.value, prefer: "return=representation"
