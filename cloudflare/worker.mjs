@@ -357,10 +357,56 @@ async function adminRoute(request, env, url, user) {
         restoredChapters++;
       }
     }
+    const revisions = Array.isArray(backup.revisions) ? backup.revisions : [];
+    const usedNumbers = new Map();
+    for (const original of backup.chapters) {
+      if (!usedNumbers.has(original.book_id)) usedNumbers.set(original.book_id, new Set());
+      usedNumbers.get(original.book_id).add(Number(original.chapter_number));
+    }
+    const orphanSnapshots = new Map();
+    for (const revision of revisions) {
+      const snapshot = revision?.snapshot;
+      if (!snapshot || typeof snapshot !== "object" || !snapshot.id ||
+          chapterIdMap.has(revision.chapter_id || snapshot.id) ||
+          !bookIdMap.has(snapshot.book_id) || typeof snapshot.body !== "string" || !snapshot.body.trim()) continue;
+      orphanSnapshots.set(snapshot.id, { revision, snapshot });
+    }
+    for (const [oldChapterId, item] of orphanSnapshots) {
+      const oldBookId = item.snapshot.book_id;
+      const newBookId = bookIdMap.get(oldBookId);
+      const used = usedNumbers.get(oldBookId) || new Set();
+      let chapterNumber = Number(item.snapshot.chapter_number);
+      if (!Number.isInteger(chapterNumber) || chapterNumber < 1 || chapterNumber > 10000 || used.has(chapterNumber)) {
+        chapterNumber = 1;
+        while (chapterNumber <= 10000 && used.has(chapterNumber)) chapterNumber++;
+      }
+      if (chapterNumber > 10000) continue;
+      const rows = await db(env, "clickers_chapters", {
+        method: "POST", query: "select=id",
+        body: {
+          owner_id: ownerId,
+          book_id: newBookId,
+          chapter_number: chapterNumber,
+          title: cleanText(item.snapshot.title || "Recovered deleted chapter", 180) || "Recovered deleted chapter",
+          body: item.snapshot.body.slice(0, 500000),
+          status: "draft",
+          is_paid: item.snapshot.is_paid === true
+        },
+        prefer: "return=representation"
+      });
+      if (rows?.[0]?.id) {
+        chapterIdMap.set(oldChapterId, { id: rows[0].id, book_id: newBookId });
+        used.add(chapterNumber);
+        usedNumbers.set(oldBookId, used);
+        restoredChapters++;
+      }
+    }
     let restoredRevisions = 0;
-    for (const original of Array.isArray(backup.revisions) ? backup.revisions : []) {
-      const restoredChapter = chapterIdMap.get(original.chapter_id);
-      if (!restoredChapter || !original.snapshot || typeof original.snapshot !== "object") continue;
+    for (const original of revisions) {
+      if (!original.snapshot || typeof original.snapshot !== "object") continue;
+      const oldChapterId = original.chapter_id || original.snapshot.id;
+      const restoredChapter = chapterIdMap.get(oldChapterId);
+      if (!restoredChapter) continue;
       const snapshot = {
         ...original.snapshot,
         id: restoredChapter.id,
