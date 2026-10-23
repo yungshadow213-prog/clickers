@@ -22,6 +22,7 @@
 <section class="wrap note"><div><div class="eyebrow">A note for readers</div><h2>Preview first. Fall in love with the story.</h2><p>Clickers currently supports reading online and downloading the available text edition from the reader. Paid checkout, purchases, and customer ebook libraries are not enabled yet, so no title is presented as purchasable until that flow is connected.</p></div><div class="note-mark" aria-hidden="true">♡</div></section>
 </main>
 <footer><div class="wrap foot"><span>© <span id="year"></span> Clickers · Original fiction</span><span><a href="./index.html">Reading room</a> · <a href="./author.html">Author studio</a></span></div></footer>
+<script src="./author-config.js"></script>
 <script src="./books.js"></script>
 <script>
 (function(){
@@ -29,7 +30,21 @@
  function esc(v){return String(v==null?"":v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
  function coverSrc(v){const raw=String(v||"").trim();if(/^https?:\/\//i.test(raw))return raw;if(!raw||/^(?:data:|javascript:|\/\/)/i.test(raw))return "";return "./"+raw.replace(/^\.?\//,"");}
  function render(){const q=$("search").value.trim().toLowerCase(),books=all.filter(b=>[b.title,b.genre,b.label,b.description,b.author].join(" ").toLowerCase().includes(q));$("count").textContent=books.length+" "+(books.length===1?"title":"titles");$("books").innerHTML=books.map(b=>{const cover=coverSrc(b.cover),url="./index.html?book="+encodeURIComponent(b.id);return '<article class="card">'+(cover?'<img class="cover" src="'+esc(cover)+'" alt="Cover of '+esc(b.title)+'" loading="lazy">':'<div class="cover-fallback"><span>CLICKERS FICTION</span><strong>'+esc(b.title)+'</strong><span>BY '+esc(b.author||"Yung Dharick")+'</span></div>')+'<div class="meta"><span class="tag">'+esc(b.label||b.genre||"Fiction")+'</span><h3>'+esc(b.title)+'</h3><p>'+esc(b.description||"Discover this original Clickers story.")+'</p><div class="card-foot"><small>'+((b.chapters||[]).length)+' chapters</small><a href="'+url+'">Preview story ↗</a></div></div></article>';}).join("")||'<div class="empty">No titles match your search. Try a different word.</div>';}
- $("search").addEventListener("input",render);$("year").textContent=new Date().getFullYear();render();
+ async function loadPublished(){
+  const api=window.CLICKERS_CONFIG&&window.CLICKERS_CONFIG.apiUrl;if(!api)return;
+  try{
+   const response=await fetch(api.replace(/\\/+$/,"")+"/api/books",{cache:"no-store"});if(!response.ok)return;
+   const published=await response.json();if(!Array.isArray(published))return;
+   const known=new Set(all.map(book=>String(book.title||"").trim().toLowerCase()));
+   const additions=await Promise.all(published.map(async item=>{
+    if(known.has(String(item.title||"").trim().toLowerCase()))return null;
+    let chapterCount=0;try{const cr=await fetch(api.replace(/\\/+$/,"")+"/api/books/"+encodeURIComponent(item.id)+"/chapters",{cache:"no-store"});if(cr.ok){const ch=await cr.json();chapterCount=Array.isArray(ch)?ch.length:0;}}catch{}
+    return {id:"author-"+item.id,title:item.title,genre:item.genre||"Fiction",label:item.genre||"New story",description:item.description||"",cover:item.cover_path||"",author:"Yung Dharick",chapters:Array.from({length:chapterCount},()=>({title:""}))};
+   }));
+   all.push(...additions.filter(Boolean));render();
+  }catch(error){console.warn("Could not load published Clickers editions.",error);}
+ }
+ $("search").addEventListener("input",render);$("year").textContent=new Date().getFullYear();render();loadPublished();
 })();
 </script>
 </body>
