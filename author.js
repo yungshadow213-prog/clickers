@@ -54,11 +54,11 @@ async function uploadImage(file) {
   if (!file) return "";
   if (!["image/jpeg","image/png","image/webp","image/avif"].includes(file.type)) throw new Error("Choose a JPG, PNG, WebP or AVIF image.");
   if (file.size > 5 * 1024 * 1024) throw new Error("Images must be 5 MB or smaller.");
-  const ext = {"image/jpeg":"jpg","image/png":"png","image/webp":"webp","image/avif":"avif"}[file.type];
-  const path = state.session.user.id + "/" + crypto.randomUUID() + "." + ext;
-  const result = await state.supabase.storage.from("clickers-book-images").upload(path, file, { upsert:false, contentType:file.type });
-  if (result.error) throw new Error("Image upload failed: " + result.error.message);
-  return state.supabase.storage.from("clickers-book-images").getPublicUrl(result.data.path).data.publicUrl;
+  const form = new FormData(); form.append("file", file, file.name);
+  const result = await fetch(apiUrl("/api/admin/images"), { method: "POST", headers: { authorization: "Bearer " + state.session.access_token }, body: form, cache: "no-store" });
+  const data = await result.json().catch(() => ({}));
+  if (!result.ok || !data.url) throw new Error(data.error || "Image upload failed.");
+  return data.url;
 }
 function resetBookEditor() {
   state.book = null; state.chapters = []; state.chapter = null; state.isNewBook = false; state.isNewChapter = false;
@@ -103,8 +103,12 @@ async function loadBook(id) {
     $("bookTitle").value = book.title || "";
     $("bookSlug").value = book.slug || "";
     $("bookGenre").value = book.genre || "";
-    $("bookCover").value = book.cover_path || "";\n    $("bookCoverPreview").src = book.cover_path || ""; $("bookCoverPreview").classList.toggle("hidden", !book.cover_path);
+    $("bookCover").value = book.cover_path || "";
+    $("bookCoverPreview").src = book.cover_path || ""; $("bookCoverPreview").classList.toggle("hidden", !book.cover_path);
     $("bookDescription").value = book.description || "";
+    $("bookCoverFile").value = "";
+    $("bookExtraImages").value = "";
+    $("bookExtraImageList").textContent = Array.isArray(book.extra_images) && book.extra_images.length ? book.extra_images.map(item => item.name || "Image").join(" · ") : "No additional images saved.";
     $("bookEditorHeading").textContent = book.title;
     $("bookStatusPill").textContent = book.status === "published" ? "Published" : "Draft";
     $("publishBookButton").textContent = book.status === "published" ? "Unpublish book" : "Publish book";
@@ -182,17 +186,26 @@ function newChapter() {
 async function saveBook(forceStatus = null) {
   const title = $("bookTitle").value.trim();
   const coverFile = $("bookCoverFile").files && $("bookCoverFile").files[0];
+  const currentExtraImages = Array.isArray(state.book?.extra_images) ? [...state.book.extra_images] : [];
+  const extraFiles = Array.from($("bookExtraImages").files || []);
+  if (extraFiles.length > 8) throw new Error("Upload up to 8 additional images per book.");
   if (coverFile) {
     status("bookStatus", "Uploading cover image…");
     $("bookCover").value = await uploadImage(coverFile);
     $("bookCoverPreview").src = $("bookCover").value;
     $("bookCoverPreview").classList.remove("hidden");
   }
+  const uploadedExtras = [];
+  for (const file of extraFiles) {
+    status("bookStatus", "Uploading additional image " + (uploadedExtras.length + 1) + " of " + extraFiles.length + "…");
+    uploadedExtras.push({ name: file.name, url: await uploadImage(file) });
+  }
   const payload = {
     title,
     slug: $("bookSlug").value.trim() || title,
     genre: $("bookGenre").value.trim(),
     cover_path: $("bookCover").value.trim(),
+    extra_images: [...currentExtraImages, ...uploadedExtras],
     description: $("bookDescription").value.trim()
   };
   if (forceStatus) payload.status = forceStatus;
@@ -379,7 +392,8 @@ $("bookCoverFile").addEventListener("change", () => {
 });
 $("bookExtraImages").addEventListener("change", () => {
   const files = Array.from($("bookExtraImages").files || []);
-  $("bookExtraImageList").textContent = files.length ? files.map(file => file.name + " · " + Math.ceil(file.size / 1024) + " KB").join(" | ") : "No additional images selected.";
+  const saved = Array.isArray(state.book?.extra_images) ? state.book.extra_images.map(item => "Saved: " + (item.name || "Image")) : [];
+  $("bookExtraImageList").textContent = [...saved, ...files.map(file => "Ready to upload: " + file.name + " · " + Math.ceil(file.size / 1024) + " KB")].join(" | ") || "No additional images selected.";
 });
 $("importLibraryButton").addEventListener("click", async () => {
   const library = Array.isArray(window.READING_ROOM_BOOKS) ? window.READING_ROOM_BOOKS : [];
