@@ -219,7 +219,7 @@ async function deleteBook() {
   state.book = null; await loadBooks();
 }
 async function deleteChapter() {
-  if (!state.chapter?.id || !confirm("Delete this chapter? Saved revisions will remain in the revision history store but the chapter link will be cleared.")) return;
+  if (!state.chapter?.id || !confirm("Delete this chapter? Its revision snapshots will remain in private storage for backup recovery, but will no longer be accessible from the editor unless recovered from a backup.")) return;
   const bookId = state.book.id;
   await api("/api/admin/chapters/" + encodeURIComponent(state.chapter.id), { method: "DELETE" });
   state.chapter = null;
