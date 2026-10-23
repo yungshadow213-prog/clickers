@@ -1,0 +1,286 @@
+const JSON_HEADERS = { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" };
+
+function response(data, status = 200, cors = {}) {
+  return new Response(JSON.stringify(data), { status, headers: { ...JSON_HEADERS, ...cors } });
+}
+
+function corsHeaders(request, env) {
+  const origin = request.headers.get("Origin");
+  const allowed = env.ALLOWED_ORIGIN || "";
+  const headers = { "access-control-allow-methods": "GET, POST, PATCH, DELETE, OPTIONS", "access-control-allow-headers": "authorization, content-type", "vary": "Origin" };
+  if (origin && allowed && origin === allowed) headers["access-control-allow-origin"] = origin;
+  return headers;
+}
+
+function cleanText(value, max = 20000) {
+  return typeof value === "string" ? value.trim().slice(0, max) : "";
+}
+
+function slugify(value) {
+  return cleanText(value, 120).toLowerCase().normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80);
+}
+
+async function readJson(request) {
+  try {
+    const body = await request.json();
+    return body && typeof body === "object" && !Array.isArray(body) ? body : null;
+  } catch {
+    return null;
+  }
+}
+
+function configReady(env) {
+  return Boolean(env.SUPABASE_URL && env.SUPABASE_PUBLISHABLE_KEY && env.SUPABASE_SECRET_KEY && env.OWNER_USER_ID);
+}
+
+async function currentUser(request, env) {
+  const authorization = request.headers.get("Authorization") || "";
+  if (!authorization.startsWith("Bearer ")) return { error: response({ error: "Sign in to continue." }, 401) };
+  if (!configReady(env)) return { error: response({ error: "The author API is not configured yet." }, 503) };
+
+  let authResponse;
+  try {
+    authResponse = await fetch(env.SUPABASE_URL.replace(/\/+$/, "") + "/auth/v1/user", {
+      headers: { apikey: env.SUPABASE_PUBLISHABLE_KEY, authorization }
+    });
+  } catch {
+    return { error: response({ error: "Authentication service is temporarily unavailable." }, 502) };
+  }
+  if (!authResponse.ok) return { error: response({ error: "Your session is invalid or expired. Sign in again." }, 401) };
+  const user = await authResponse.json();
+  if (!user?.id || user.id !== env.OWNER_USER_ID) return { error: response({ error: "This account is not allowed to access the author dashboard." }, 403) };
+  return { user };
+}
+
+async function db(env, table, { method = "GET", query = "", body, prefer } = {}) {
+  const url = env.SUPABASE_URL.replace(/\/+$/, "") + "/rest/v1/" + table + (query ? "?" + query : "");
+  const headers = {
+    apikey: env.SUPABASE_SECRET_KEY,
+    authorization: "Bearer " + env.SUPABASE_SECRET_KEY,
+    accept: "application/json"
+  };
+  if (body !== undefined) headers["content-type"] = "application/json";
+  if (prefer) headers.prefer = prefer;
+  const result = await fetch(url, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
+  const text = await result.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch { data = { message: text }; }
+  if (!result.ok) {
+    const error = new Error(data?.message || data?.hint || "Database request failed.");
+    error.status = result.status;
+    throw error;
+  }
+  return data;
+}
+
+function ownerFilter(ownerId) {
+  return "owner_id=eq." + encodeURIComponent(ownerId);
+}
+
+function validateBook(body, partial = false) {
+  const out = {};
+  if (!partial || "title" in body) {
+    out.title = cleanText(body.title, 180);
+    if (!out.title) return { error: "A book title is required." };
+  }
+  if (!partial || "description" in body) out.description = cleanText(body.description, 5000);
+  if (!partial || "genre" in body) out.genre = cleanText(body.genre, 80);
+  if (!partial || "cover_path" in body) out.cover_path = cleanText(body.cover_path, 500);
+  if (!partial || "slug" in body) {
+    out.slug = slugify(body.slug || body.title);
+    if (!out.slug) return { error: "A valid book slug is required." };
+  }
+  if ("status" in body || !partial) {
+    out.status = body.status === "published" ? "published" : "draft";
+  }
+  return { value: out };
+}
+
+function validateChapter(body, partial = false) {
+  const out = {};
+  if (!partial || "title" in body) {
+    out.title = cleanText(body.title, 180);
+    if (!out.title) return { error: "A chapter title is required." };
+  }
+  if (!partial || "body" in body) {
+    out.body = typeof body.body === "string" ? body.body.slice(0, 500000) : "";
+    if (!out.body.trim()) return { error: "Chapter text cannot be empty." };
+  }
+  if (!partial || "chapter_number" in body) {
+    const number = Number(body.chapter_number);
+    if (!Number.isInteger(number) || number < 1 || number > 10000) return { error: "Chapter number must be a whole number above zero." };
+    out.chapter_number = number;
+  }
+  if ("status" in body || !partial) out.status = body.status === "published" ? "published" : "draft";
+  if ("is_paid" in body || !partial) out.is_paid = body.is_paid === true;
+  return { value: out };
+}
+
+async function adminRoute(request, env, url, user) {
+  const ownerId = user.id;
+  const path = url.pathname.replace(/\/+$/, "");
+  const method = request.method;
+
+  if (path === "/api/admin/books" && method === "GET") {
+    return response(await db(env, "clickers_books", {
+      query: ownerFilter(ownerId) + "&select=id,slug,title,description,genre,cover_path,status,created_at,updated_at&order=updated_at.desc"
+    }));
+  }
+
+  if (path === "/api/admin/books" && method === "POST") {
+    const body = await readJson(request);
+    if (!body) return response({ error: "Send valid JSON." }, 400);
+    const parsed = validateBook(body);
+    if (parsed.error) return response({ error: parsed.error }, 400);
+    const rows = await db(env, "clickers_books", {
+      method: "POST", query: "select=id,slug,title,description,genre,cover_path,status,created_at,updated_at",
+      body: { ...parsed.value, owner_id: ownerId }, prefer: "return=representation"
+    });
+    return response(rows?.[0] || null, 201);
+  }
+
+  const bookMatch = path.match(/^\/api\/admin\/books\/([0-9a-f-]{36})$/i);
+  if (bookMatch && method === "PATCH") {
+    const body = await readJson(request);
+    if (!body) return response({ error: "Send valid JSON." }, 400);
+    const parsed = validateBook(body, true);
+    if (parsed.error) return response({ error: parsed.error }, 400);
+    if (!Object.keys(parsed.value).length) return response({ error: "There are no changes to save." }, 400);
+    const rows = await db(env, "clickers_books", {
+      method: "PATCH", query: ownerFilter(ownerId) + "&id=eq." + bookMatch[1] + "&select=id,slug,title,description,genre,cover_path,status,created_at,updated_at",
+      body: parsed.value, prefer: "return=representation"
+    });
+    if (!rows?.length) return response({ error: "Book not found." }, 404);
+    return response(rows[0]);
+  }
+  if (bookMatch && method === "DELETE") {
+    const rows = await db(env, "clickers_books", {
+      method: "DELETE", query: ownerFilter(ownerId) + "&id=eq." + bookMatch[1] + "&select=id", prefer: "return=representation"
+    });
+    if (!rows?.length) return response({ error: "Book not found." }, 404);
+    return response({ ok: true });
+  }
+
+  const bookChapters = path.match(/^\/api\/admin\/books\/([0-9a-f-]{36})\/chapters$/i);
+  if (bookChapters && method === "GET") {
+    const books = await db(env, "clickers_books", {
+      query: ownerFilter(ownerId) + "&id=eq." + bookChapters[1] + "&select=id"
+    });
+    if (!books?.length) return response({ error: "Book not found." }, 404);
+    return response(await db(env, "clickers_chapters", {
+      query: ownerFilter(ownerId) + "&book_id=eq." + bookChapters[1] + "&select=id,book_id,chapter_number,title,body,status,is_paid,created_at,updated_at&order=chapter_number.asc"
+    }));
+  }
+  if (bookChapters && method === "POST") {
+    const body = await readJson(request);
+    if (!body) return response({ error: "Send valid JSON." }, 400);
+    const parsed = validateChapter(body);
+    if (parsed.error) return response({ error: parsed.error }, 400);
+    const books = await db(env, "clickers_books", {
+      query: ownerFilter(ownerId) + "&id=eq." + bookChapters[1] + "&select=id"
+    });
+    if (!books?.length) return response({ error: "Book not found." }, 404);
+    const rows = await db(env, "clickers_chapters", {
+      method: "POST", query: "select=id,book_id,chapter_number,title,body,status,is_paid,created_at,updated_at",
+      body: { ...parsed.value, owner_id: ownerId, book_id: bookChapters[1] }, prefer: "return=representation"
+    });
+    return response(rows?.[0] || null, 201);
+  }
+
+  const chapterMatch = path.match(/^\/api\/admin\/chapters\/([0-9a-f-]{36})$/i);
+  if (chapterMatch && method === "PATCH") {
+    const body = await readJson(request);
+    if (!body) return response({ error: "Send valid JSON." }, 400);
+    const parsed = validateChapter(body, true);
+    if (parsed.error) return response({ error: parsed.error }, 400);
+    if (!Object.keys(parsed.value).length) return response({ error: "There are no changes to save." }, 400);
+    const existing = await db(env, "clickers_chapters", {
+      query: ownerFilter(ownerId) + "&id=eq." + chapterMatch[1] + "&select=id,owner_id,book_id,chapter_number,title,body,status,is_paid"
+    });
+    if (!existing?.length) return response({ error: "Chapter not found." }, 404);
+    await db(env, "clickers_chapter_revisions", {
+      method: "POST", query: "select=id",
+      body: { owner_id: ownerId, chapter_id: existing[0].id, snapshot: existing[0] },
+      prefer: "return=minimal"
+    });
+    const rows = await db(env, "clickers_chapters", {
+      method: "PATCH", query: ownerFilter(ownerId) + "&id=eq." + chapterMatch[1] + "&select=id,book_id,chapter_number,title,body,status,is_paid,created_at,updated_at",
+      body: parsed.value, prefer: "return=representation"
+    });
+    return response(rows?.[0] || null);
+  }
+  if (chapterMatch && method === "DELETE") {
+    const rows = await db(env, "clickers_chapters", {
+      method: "DELETE", query: ownerFilter(ownerId) + "&id=eq." + chapterMatch[1] + "&select=id", prefer: "return=representation"
+    });
+    if (!rows?.length) return response({ error: "Chapter not found." }, 404);
+    return response({ ok: true });
+  }
+
+  const revisionsMatch = path.match(/^\/api\/admin\/chapters\/([0-9a-f-]{36})\/revisions$/i);
+  if (revisionsMatch && method === "GET") {
+    const chapter = await db(env, "clickers_chapters", {
+      query: ownerFilter(ownerId) + "&id=eq." + revisionsMatch[1] + "&select=id"
+    });
+    if (!chapter?.length) return response({ error: "Chapter not found." }, 404);
+    return response(await db(env, "clickers_chapter_revisions", {
+      query: ownerFilter(ownerId) + "&chapter_id=eq." + revisionsMatch[1] + "&select=id,created_at,snapshot&order=created_at.desc&limit=30"
+    }));
+  }
+  return response({ error: "Not found." }, 404);
+}
+
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+    const cors = corsHeaders(request, env);
+    if (request.method === "OPTIONS") {
+      if (request.headers.get("Origin") && cors["access-control-allow-origin"] === undefined) {
+        return response({ error: "Origin not allowed." }, 403, cors);
+      }
+      return new Response(null, { status: 204, headers: cors });
+    }
+    if (request.headers.get("Origin") && cors["access-control-allow-origin"] === undefined) {
+      return response({ error: "Origin not allowed." }, 403, cors);
+    }
+    if (url.pathname === "/api/health" && request.method === "GET") {
+      return response({ ok: true, service: "clickers-private-api" }, 200, cors);
+    }
+    if (!url.pathname.startsWith("/api/")) return response({ error: "Not found." }, 404, cors);
+    if (!configReady(env)) return response({ error: "The author API is not configured yet." }, 503, cors);
+
+    try {
+      if (url.pathname === "/api/books" && request.method === "GET") {
+        const books = await db(env, "clickers_books", {
+          query: "owner_id=eq." + encodeURIComponent(env.OWNER_USER_ID) + "&status=eq.published&select=id,slug,title,description,genre,cover_path&order=updated_at.desc"
+        });
+        return response(books, 200, cors);
+      }
+      const publicChapterMatch = url.pathname.match(/^\/api\/books\/([0-9a-f-]{36})\/chapters$/i);
+      if (publicChapterMatch && request.method === "GET") {
+        const books = await db(env, "clickers_books", {
+          query: "owner_id=eq." + encodeURIComponent(env.OWNER_USER_ID) + "&id=eq." + publicChapterMatch[1] + "&status=eq.published&select=id"
+        });
+        if (!books?.length) return response({ error: "Book not found." }, 404, cors);
+        const chapters = await db(env, "clickers_chapters", {
+          query: "owner_id=eq." + encodeURIComponent(env.OWNER_USER_ID) + "&book_id=eq." + publicChapterMatch[1] + "&status=eq.published&is_paid=eq.false&select=id,chapter_number,title,body&order=chapter_number.asc"
+        });
+        return response(chapters, 200, cors);
+      }
+      if (!url.pathname.startsWith("/api/admin/")) return response({ error: "Not found." }, 404, cors);
+      const auth = await currentUser(request, env);
+      if (auth.error) {
+        const result = await auth.error.json();
+        return response(result, auth.error.status, cors);
+      }
+      return await adminRoute(request, env, url, auth.user).then(async result => {
+        const body = result.status === 204 ? null : await result.text();
+        return new Response(body, { status: result.status, headers: { ...Object.fromEntries(result.headers), ...cors } });
+      });
+    } catch (error) {
+      const status = Number.isInteger(error.status) && error.status >= 400 && error.status < 500 ? error.status : 500;
+      return response({ error: status === 500 ? "The request could not be completed. Check the server configuration and database migration." : error.message }, status, cors);
+    }
+  }
+};
