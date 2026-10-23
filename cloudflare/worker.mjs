@@ -533,7 +533,8 @@ export default {
       return response({ error: "Origin not allowed." }, 403, cors);
     }
     if (url.pathname === "/api/health" && request.method === "GET") {
-      return response({ ok: true, service: "clickers-private-api" }, 200, cors);
+      const missing = missingConfig(env);
+      return response({ ok: true, service: "clickers-private-api", authorApiReady: missing.length === 0, missingConfiguration: missing }, 200, cors);
     }
     if (!url.pathname.startsWith("/api/")) return response({ error: "Not found." }, 404, cors);
     if (!configReady(env)) return response(configurationError(env), 503, cors);
