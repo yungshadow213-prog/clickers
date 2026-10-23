@@ -313,16 +313,26 @@ async function loadBackups() {
 
 async function signIn(event) {
   event.preventDefault();
-  if (!state.supabase) return;
-  $("signInButton").disabled = true;
+  if (!state.supabase) {
+    status("loginStatus", "The sign-in service is not ready. Reload the page and try again.", "error");
+    return;
+  }
+  const button = $("signInButton");
+  button.disabled = true;
   status("loginStatus", "Signing in…");
-  const { data, error } = await state.supabase.auth.signInWithPassword({
-    email: $("email").value.trim(), password: $("password").value
-  });
-  $("signInButton").disabled = false;
-  if (error) { status("loginStatus", error.message, "error"); return; }
-  state.session = data.session;
-  await startStudio();
+  try {
+    const { data, error } = await state.supabase.auth.signInWithPassword({
+      email: $("email").value.trim(), password: $("password").value
+    });
+    if (error) throw error;
+    state.session = data.session;
+    if (!state.session?.access_token) throw new Error("Sign-in did not return a valid session. Please try again.");
+    await startStudio();
+  } catch (error) {
+    status("loginStatus", error?.message || "Could not sign in. Check your connection and try again.", "error");
+  } finally {
+    button.disabled = false;
+  }
 }
 async function startStudio() {
   if (!state.session?.access_token) { showLogin(); return; }
