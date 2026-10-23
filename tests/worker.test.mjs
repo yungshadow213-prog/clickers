@@ -118,3 +118,41 @@ test("private backup storage uses the secret key only as an apikey", async () =>
   assert.equal(storageHeaders.apikey, env.SUPABASE_SECRET_KEY);
   assert.equal(storageHeaders.authorization, undefined, "Storage must not receive a secret key as a Bearer token");
 });
+
+test("backup upload and restore never send a secret key as a Bearer token", async () => {
+  const storageCalls = [];
+  globalThis.fetch = async (url, init = {}) => {
+    const parsed = new URL(String(url));
+    if (parsed.pathname === "/auth/v1/user") {
+      return new Response(JSON.stringify({ id: env.OWNER_USER_ID }), { status: 200 });
+    }
+    if (parsed.pathname === "/rest/v1/clickers_books" ||
+        parsed.pathname === "/rest/v1/clickers_chapters" ||
+        parsed.pathname === "/rest/v1/clickers_chapter_revisions") {
+      return new Response(JSON.stringify([]), { status: 200 });
+    }
+    if (parsed.pathname.startsWith("/storage/v1/object/clickers-private/")) {
+      storageCalls.push({ method: init.method || "GET", headers: init.headers });
+      if ((init.method || "GET") === "POST") return new Response(JSON.stringify({ Key: "backup" }), { status: 200 });
+      return new Response(JSON.stringify({
+        format: "clickers-author-backup-v1", owner_id: env.OWNER_USER_ID, books: [], chapters: [], revisions: []
+      }), { status: 200 });
+    }
+    throw new Error("Unexpected URL " + parsed);
+  };
+  const headers = { origin: env.ALLOWED_ORIGIN, authorization: "Bearer valid-owner-session", "content-type": "application/json" };
+  const created = await worker.fetch(new Request("https://api.example.workers.dev/api/admin/backups", {
+    method: "POST", headers, body: "{}"
+  }), env);
+  assert.equal(created.status, 201);
+  const createdData = await created.json();
+  const restored = await worker.fetch(new Request("https://api.example.workers.dev/api/admin/backups/restore", {
+    method: "POST", headers, body: JSON.stringify({ path: createdData.path })
+  }), env);
+  assert.equal(restored.status, 201);
+  assert.equal(storageCalls.length, 2);
+  for (const call of storageCalls) {
+    assert.equal(call.headers.apikey, env.SUPABASE_SECRET_KEY);
+    assert.equal(call.headers.authorization, undefined);
+  }
+});
