@@ -309,7 +309,7 @@ test("cannot turn the last free chapter of a published book into a paid chapter"
   globalThis.fetch = async (url, init = {}) => {
     const parsed = new URL(String(url));
     if (parsed.pathname === "/auth/v1/user") return new Response(JSON.stringify({ id: env.OWNER_USER_ID }), { status: 200 });
-    if (parsed.pathname === "/rest/v1/clickers_chapters" && parsed.searchParams.get("id") === "eq." + chapterId && !init.method) {
+    if (parsed.pathname === "/rest/v1/clickers_chapters" && parsed.searchParams.get("id") === "eq." + chapterId && (!init.method || init.method === "GET")) {
       return new Response(JSON.stringify([{ id: chapterId, book_id: bookId, status: "published", is_paid: false, chapter_number: 1, title: "Only free chapter", body: "Text" }]), { status: 200 });
     }
     if (parsed.pathname === "/rest/v1/clickers_books") return new Response(JSON.stringify([{ status: "published" }]), { status: 200 });
@@ -338,7 +338,7 @@ test("cannot delete the last free chapter of a published book", async () => {
   globalThis.fetch = async (url, init = {}) => {
     const parsed = new URL(String(url));
     if (parsed.pathname === "/auth/v1/user") return new Response(JSON.stringify({ id: env.OWNER_USER_ID }), { status: 200 });
-    if (parsed.pathname === "/rest/v1/clickers_chapters" && parsed.searchParams.get("id") === "eq." + chapterId && !init.method) {
+    if (parsed.pathname === "/rest/v1/clickers_chapters" && parsed.searchParams.get("id") === "eq." + chapterId && (!init.method || init.method === "GET")) {
       return new Response(JSON.stringify([{ id: chapterId, book_id: bookId, status: "published", is_paid: false }]), { status: 200 });
     }
     if (parsed.pathname === "/rest/v1/clickers_books") return new Response(JSON.stringify([{ status: "published" }]), { status: 200 });
