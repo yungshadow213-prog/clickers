@@ -70,14 +70,28 @@ function resetBookEditor() {
 function renderBooks() {
   const host = $("bookList");
   host.replaceChildren();
+  const published = state.books.filter(book => book.status === "published").length;
+  $("metricBooks").textContent = String(state.books.length);
+  $("metricPublished").textContent = String(published);
+  $("metricDrafts").textContent = String(state.books.length - published);
+  $("metricChapters").textContent = state.books.reduce((sum, book) => sum + Number(book.chapter_count || book.chapters_count || 0), 0) || "—";
+  const query = ($("bookSearch")?.value || "").trim().toLowerCase();
+  const filter = $("bookStatusFilter")?.value || "all";
+  const visible = state.books.filter(book =>
+    (filter === "all" || book.status === filter) &&
+    [book.title, book.slug, book.genre, book.description].join(" ").toLowerCase().includes(query)
+  );
   if (!state.books.length) {
-    const empty = document.createElement("div"); empty.className = "empty"; empty.textContent = "No books yet. Choose + New to start your first manuscript."; host.append(empty); return;
+    const empty = document.createElement("div"); empty.className = "empty"; empty.textContent = "Your library is waiting. Import existing public books or choose + New book to start a manuscript."; host.append(empty); return;
   }
-  for (const book of state.books) {
+  if (!visible.length) {
+    const empty = document.createElement("div"); empty.className = "empty"; empty.textContent = "No books match this search or status filter."; host.append(empty); return;
+  }
+  for (const book of visible) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "book-item" + (state.book?.id === book.id ? " active" : "");
-    const title = document.createElement("strong"); title.textContent = book.title;
+    const title = document.createElement("strong"); title.textContent = book.title || "Untitled book";
     const meta = document.createElement("span"); meta.textContent = (book.status === "published" ? "Published" : "Draft") + " · " + (book.genre || "Uncategorised");
     button.append(title, meta);
     button.addEventListener("click", () => loadBook(book.id));
@@ -386,6 +400,8 @@ async function startStudio() {
   }
 }
 
+$("bookSearch").addEventListener("input", renderBooks);
+$("bookStatusFilter").addEventListener("change", renderBooks);
 $("bookCoverFile").addEventListener("change", () => {
   const file = $("bookCoverFile").files && $("bookCoverFile").files[0];
   if (file) { $("bookCoverPreview").src = URL.createObjectURL(file); $("bookCoverPreview").classList.remove("hidden"); }
