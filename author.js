@@ -16,11 +16,15 @@ function showLogin() {
   loginSection.classList.remove("hidden");
   studioSection.classList.add("hidden");
   $("signOutButton").classList.add("hidden");
+  $("backupButton").classList.add("hidden");
+  $("showBackupsButton").classList.add("hidden");
 }
 function showStudio() {
   loginSection.classList.add("hidden");
   studioSection.classList.remove("hidden");
   $("signOutButton").classList.remove("hidden");
+  $("backupButton").classList.remove("hidden");
+  $("showBackupsButton").classList.remove("hidden");
 }
 function requireConfig() {
   if (!config.supabaseUrl || config.supabaseUrl.includes("YOUR_PROJECT_REF") ||
@@ -256,6 +260,57 @@ async function loadRevisions() {
   }
   $("revisionsPanel").classList.remove("hidden");
 }
+async function createBackup() {
+  $("backupButton").disabled = true;
+  status("globalStatus", "Creating a private cloud backup…");
+  try {
+    const result = await api("/api/admin/backups", { method: "POST", body: JSON.stringify({}) });
+    status("globalStatus", "Backup saved privately · " + result.books + " books and " + result.chapters + " chapters.", "success");
+    await loadBackups();
+    $("backupsPanel").classList.remove("hidden");
+  } catch (error) {
+    status("globalStatus", error.message, "error");
+  } finally {
+    $("backupButton").disabled = false;
+  }
+}
+async function loadBackups() {
+  const host = $("backupList");
+  host.replaceChildren();
+  status("backupStatus", "Loading private backups…");
+  try {
+    const backups = await api("/api/admin/backups");
+    if (!backups.length) {
+      const empty = document.createElement("div"); empty.className = "empty"; empty.textContent = "No cloud backups yet. Choose Create backup to save a private snapshot."; host.append(empty);
+    } else {
+      for (const backup of backups) {
+        const row = document.createElement("div");
+        row.className = "chapter-item";
+        const info = document.createElement("span");
+        info.textContent = backup.name + (backup.created_at ? " · " + new Date(backup.created_at).toLocaleString() : "");
+        const restore = document.createElement("button");
+        restore.type = "button"; restore.className = "button outline"; restore.textContent = "Recover as drafts";
+        restore.addEventListener("click", async () => {
+          if (!confirm("Recover this backup as new draft copies? Existing books will not be overwritten. Paid chapters remain locked.")) return;
+          restore.disabled = true;
+          status("backupStatus", "Recovering backup as draft copies…");
+          try {
+            const result = await api("/api/admin/backups/restore", { method: "POST", body: JSON.stringify({ path: backup.path }) });
+            await loadBooks();
+            status("backupStatus", "Recovered " + result.books + " books and " + result.chapters + " chapters as drafts. Existing books were not changed.", "success");
+          } catch (error) {
+            status("backupStatus", error.message, "error");
+          } finally { restore.disabled = false; }
+        });
+        row.append(info, restore); host.append(row);
+      }
+    }
+    status("backupStatus", backups.length + " private backup(s) available.", "success");
+  } catch (error) {
+    status("backupStatus", error.message, "error");
+  }
+}
+
 async function signIn(event) {
   event.preventDefault();
   if (!state.supabase) return;
@@ -289,6 +344,12 @@ $("signOutButton").addEventListener("click", async () => {
   state.session = null; state.books = []; state.book = null; showLogin();
   status("loginStatus", "You have signed out.", "success");
 });
+$("backupButton").addEventListener("click", createBackup);
+$("showBackupsButton").addEventListener("click", async () => {
+  $("backupsPanel").classList.remove("hidden");
+  await loadBackups();
+});
+$("closeBackupsButton").addEventListener("click", () => $("backupsPanel").classList.add("hidden"));
 $("newBookButton").addEventListener("click", newBook);
 $("bookForm").addEventListener("submit", async event => {
   event.preventDefault();
