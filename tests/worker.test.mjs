@@ -46,6 +46,17 @@ test("invalid Supabase sessions cannot access the author API", async () => {
   assert.equal(result.status, 401);
 });
 
+test("a valid but non-owner Supabase account is forbidden", async () => {
+  globalThis.fetch = async url => {
+    assert.equal(String(url), env.SUPABASE_URL + "/auth/v1/user");
+    return new Response(JSON.stringify({ id: "33333333-3333-4333-8333-333333333333" }), { status: 200 });
+  };
+  const result = await worker.fetch(new Request("https://api.example.workers.dev/api/admin/books", {
+    headers: { origin: env.ALLOWED_ORIGIN, authorization: "Bearer valid-but-not-owner" }
+  }), env);
+  assert.equal(result.status, 403);
+});
+
 test("public chapter endpoint only requests published, non-paid chapters", async () => {
   const calls = [];
   globalThis.fetch = async (url, init = {}) => {
