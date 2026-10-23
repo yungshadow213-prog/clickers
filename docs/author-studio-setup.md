@@ -18,13 +18,13 @@ The Worker public API only lists published books and only returns chapters whose
 
 ## One-time setup
 
-Do not choose or reuse an existing Supabase project without confirming that it is intended for Clickers. The connected account currently has other projects with unrelated names/statuses. No database migration or production deployment has been run by this branch.
+**Already completed:** a dedicated project named \`clickers\` was created for this site in region \`eu-west-2\`, and migration \`clickers_private_author\` was applied and verified. Its project reference is \`jlqyusgaauovyksksywh\`. The private tables have row-level security enabled, the private Storage bucket exists, and the security advisor returned no findings at setup time. Existing Supabase projects were not changed.
 
-1. Create or select a Supabase project specifically approved for Clickers.
-2. In that project's SQL Editor, run \`supabase/migrations/202610230001_clickers_private_author.sql\`.
-3. In Supabase Authentication, create the one approved author account. Public sign-up is intentionally not provided by the dashboard. Copy the account's UUID; it becomes \`OWNER_USER_ID\`.
-4. In Supabase Project Settings → API Keys, copy the Project URL, publishable key, and a server-side secret key. The secret key must never be added to browser files or GitHub.
-5. Install Wrangler in your local project environment and authenticate to Cloudflare. From the repository root, set Worker secrets:
+**Still required before the dashboard can sign in:**
+
+1. In [Clickers Authentication → Users](https://supabase.com/dashboard/project/jlqyusgaauovyksksywh/auth/users), create the one approved author account. Use an email address you control and a strong password. Public sign-up is intentionally not provided by the dashboard. The user's UUID becomes \`OWNER_USER_ID\`.
+2. In [Clickers Project Settings → API Keys](https://supabase.com/dashboard/project/jlqyusgaauovyksksywh/settings/api-keys), copy the Project URL, publishable key, and a server-side secret key. The publishable key is already configured in \`author-config.js\`. The secret key must never be added to browser files, commits, screenshots, or chat.
+3. Install Wrangler in your local project environment and authenticate to Cloudflare. From the repository root, set Worker secrets:
 
    \`\`\`sh
    npx wrangler secret put SUPABASE_URL
@@ -36,10 +36,8 @@ Do not choose or reuse an existing Supabase project without confirming that it i
 
    Paste each value only into Wrangler's interactive prompt. Do not put secret values in shell history, commits, or screenshots.
 
-6. Edit \`author-config.js\` with the Supabase project URL, the **publishable** key, and the deployed Worker URL. The publishable key is intended for browser use; the secret key is not.
-7. Deploy the static site using its existing Pages workflow. The public reader UI remains unchanged.
-
-The Worker allows browser requests only from \`https://yungshadow213-prog.github.io\` by default. If the site later moves to a custom domain, change \`ALLOWED_ORIGIN\` in \`wrangler.toml\` and deploy again.
+4. The Worker allows browser requests only from \`https://yungshadow213-prog.github.io\` by default. If the site later moves to a custom domain, change \`ALLOWED_ORIGIN\` in \`wrangler.toml\` and deploy again.
+5. The public Worker URL must be added to \`author-config.js\` after deployment. Then deploy the static site using its existing Pages workflow. The public reader UI remains unchanged.
 
 ## Security behaviour
 
