@@ -274,7 +274,6 @@ async function adminRoute(request, env, url, user) {
       method: "POST",
       headers: {
         apikey: env.SUPABASE_SECRET_KEY,
-        authorization: "Bearer " + env.SUPABASE_SECRET_KEY,
         "content-type": "application/json",
         "x-upsert": "false"
       },
@@ -295,7 +294,7 @@ async function adminRoute(request, env, url, user) {
     }
     const encodedPath = objectPath.split("/").map(encodeURIComponent).join("/");
     const download = await fetch(env.SUPABASE_URL.replace(/\/+$/, "") + "/storage/v1/object/clickers-private/" + encodedPath, {
-      headers: { apikey: env.SUPABASE_SECRET_KEY, authorization: "Bearer " + env.SUPABASE_SECRET_KEY }
+      headers: { apikey: env.SUPABASE_SECRET_KEY }
     });
     if (!download.ok) return response({ error: "That backup could not be found." }, 404);
     const backup = await download.json();
