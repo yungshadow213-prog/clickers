@@ -61,6 +61,12 @@
 <div class="field"><label for="bookCoverFile">Upload cover image</label><input id="bookCoverFile" type="file" accept="image/jpeg,image/png,image/webp,image/avif"><p class="muted">JPG, PNG, WebP or AVIF · up to 5 MB.</p><img id="bookCoverPreview" alt="Cover preview" class="hidden" style="width:130px;max-height:190px;object-fit:cover;border:1px solid var(--line);border-radius:8px"></div>
 <div class="field"><label for="bookExtraImages">Additional story images (optional)</label><input id="bookExtraImages" type="file" accept="image/jpeg,image/png,image/webp,image/avif" multiple><div id="bookExtraImageList" class="muted">No additional images selected.</div></div>
 <div class="field"><label for="bookDescription">Synopsis</label><textarea id="bookDescription" rows="3" maxlength="5000"></textarea></div>
+<div class="section-note" style="margin:18px 0">Ebook sales · Set a price and upload the complete PDF. The original file stays private; readers receive a time-limited download only after Paystack confirms payment.</div>
+<div class="split">
+  <div class="field"><label for="bookPrice">Price (NGN)</label><input id="bookPrice" type="number" min="1" step="0.01" inputmode="decimal" placeholder="e.g. 2500"></div>
+  <div class="field"><label for="bookForSale">Sales status</label><label class="checkrow"><input id="bookForSale" type="checkbox"> Offer this book for sale</label></div>
+</div>
+<div class="field"><label for="bookEbookFile">Upload complete ebook (PDF)</label><input id="bookEbookFile" type="file" accept="application/pdf"><div id="bookEbookStatus" class="muted">No private PDF uploaded yet · up to 50 MB.</div></div>
 <div class="actions"><button class="button" type="submit">Save book</button><button class="button outline" id="publishBookButton" type="button">Publish book</button><button class="button danger" id="deleteBookButton" type="button">Delete book</button></div>
 <p id="bookStatus" class="status" role="status" aria-live="polite"></p>
 </form>
@@ -71,8 +77,8 @@
 <form id="chapterForm">
 <div class="split"><div class="field"><label for="chapterNumber">Chapter number</label><input id="chapterNumber" type="number" min="1" max="10000" step="1" required></div><div class="field"><label for="chapterTitle">Chapter title</label><input id="chapterTitle" maxlength="180" required></div></div>
 <div class="field"><label for="chapterBody">Chapter text</label><textarea id="chapterBody" required placeholder="Start writing here…"></textarea></div>
-<div class="split"><label class="checkrow"><input id="chapterPaid" type="checkbox"> Paid chapter (locked from public API)</label><label class="checkrow"><input id="chapterPublished" type="checkbox"> Publish this chapter</label></div>
-<p class="hint">Paid chapter delivery and payments are not implemented yet. Marking a chapter as paid keeps it excluded from the public chapter endpoint, even if its status is Published.</p>
+<div class="split"><label class="checkrow"><input id="chapterPublished" type="checkbox"> Publish this chapter</label></div>
+<p class="hint">Use the book sales settings above to sell the complete PDF. Published chapters remain free reading previews.</p>
 <div class="actions"><button class="button" type="submit">Save chapter</button><button class="button outline" id="chapterPublishButton" type="button">Save & publish</button><button class="button subtle" id="revisionsButton" type="button">View revisions</button><button class="button danger" id="deleteChapterButton" type="button">Delete chapter</button></div>
 <p id="chapterStatus" class="status" role="status" aria-live="polite"></p>
 </form>
