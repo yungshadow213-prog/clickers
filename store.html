@@ -1,10 +1,29 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#fff7f1"><meta name="description" content="Explore the Clickers bookshop. Discover original books, previews and stories by Yung Dharick."><title>Discover books — Clickers</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./styles.css"></head><body>
-<div class="announcement">A new chapter begins here <span>✳</span> Stories by Yung Dharick</div>
-<header><div class="wrap nav"><a class="brand" href="./index.html"><span class="mark">c</span><span>clickers<small>the story house</small></span></a><nav class="links"><a href="./index.html">Home</a><a href="./index.html#moods">Browse by mood</a><a class="button" href="./index.html#author">Meet the author ↗</a></nav></div></header>
-<main><section class="wrap hero"><div><div class="eyebrow">The Clickers bookshop</div><h1>Find a story<br>to <em>stay in.</em></h1><p>Browse original writing, discover new worlds and meet the characters you won't forget. Every book begins with a feeling. Find yours.</p></div><div class="hero-stamp">Read slowly.<br>Feel deeply.</div></section>
-<section class="wrap catalogue"><div class="tools"><input id="search" type="search" placeholder="Search titles, genres and authors…" aria-label="Search books"><select id="genre" aria-label="Filter by genre"><option value="">All genres</option></select></div><div class="count" id="count">Preparing the shelves…</div><div class="grid" id="books"><div class="empty"><i>c</i><h2>A new chapter is on its way.</h2><p>The old catalogue has been cleared. Fresh titles, new covers and new stories will appear here as they are released.</p></div></div></section></main>
-<footer><div class="wrap foot"><div><strong>clickers.</strong><div>Stories that stay with you.</div></div><div>© <span id="year"></span> Clickers · <a href="./index.html">Back to home</a> · <a href="./author.html">Author sign in</a></div></div></footer>
-<script src="./author-config.js"></script><script src="./books.js"></script><script src="./storefront.js"></script></body></html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f7f7f2">
+<meta name="description" content="Browse the Clickers bookshop. Find stories by mood, explore previews and buy original ebooks.">
+<title>Discover books — Clickers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+<div class="announcement"><span class="announcement-dot"></span> A good story is waiting for you <a href="./index.html">Back to Clickers ↗</a></div>
+<header class="site-header"><div class="wrap nav">
+<a class="brand" href="./index.html"><span class="brand-mark">c<span>✳</span></span><span class="brand-word">clickers<small>read into something</small></span></a>
+<nav class="navlinks" id="navlinks" aria-label="Main navigation"><a href="./index.html">Home</a><a href="./index.html#moods">Browse moods</a><a href="./index.html#reading-life">Your reading life</a></nav>
+<div class="nav-actions"><a class="saved-link" href="./saved.html"><span>♡</span><span class="saved-label">My list</span><b id="savedCount">0</b></a><a class="nav-cta" href="./author.html">For writers ↗</a></div><button class="menu-toggle" id="menuToggle" aria-label="Open navigation" aria-expanded="false">☰</button>
+</div></header>
+<main>
+<section class="wrap page-hero"><div><div class="eyebrow">THE CLICKERS BOOKSHOP</div><h1>Choose your next<br><em>little escape.</em></h1><p>Browse original stories, take a peek inside before you commit, and find the books you’ll want to keep. Search by title, writer or the kind of story you’re craving.</p></div><div class="hero-stamp">Good books.<br>Good feelings.</div></section>
+<section class="wrap catalogue">
+<div class="tools"><input id="search" type="search" placeholder="Search titles, writers or genres…" aria-label="Search books"><select id="genre" aria-label="Filter by genre"><option value="">Every genre</option></select></div>
+<div class="genre-pills" id="storeGenres"></div><div class="count" id="count">Opening the shelves…</div>
+<div class="book-grid" id="books"><div class="empty-state"><div class="empty-mark">✳</div><h3>Good things are being added to the shelves.</h3><p>The catalogue is starting fresh. Check back as new books are published.</p></div></div>
+</section>
+</main>
+<footer class="site-footer"><div class="wrap footer-main"><div class="footer-brand"><a class="brand brand-footer" href="./index.html"><span class="brand-mark">c<span>✳</span></span><span class="brand-word">clickers<small>read into something</small></span></a><p>Good stories. Good company.<br>One more chapter.</p></div><div class="footer-column"><b>EXPLORE</b><a href="./index.html">Home</a><a href="./index.html#moods">Browse by mood</a><a href="./saved.html">My reading list</a></div><div class="footer-column"><b>YOUR CLICKERS</b><a href="./index.html#reading-life">Reading corner</a><a href="./author.html">Author sign in</a><a href="./index.html#about">About Clickers</a></div><div class="footer-note"><span>✳</span><strong>Find a story.<br>Feel everything.</strong></div></div><div class="wrap footer-bottom"><span>© <span id="year"></span> Clickers</span><span>Made for people who love a good story.</span><a href="./admin.html">Author access ↗</a></div></footer>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="./author-config.js"></script><script src="./books.js"></script><script src="./storefront.js"></script>
+</body></html>

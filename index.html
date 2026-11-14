@@ -3,37 +3,104 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#fff7f1">
-<meta name="description" content="Discover stories with a pulse. Explore original fiction, poetry and writing by Yung Dharick on Clickers.">
+<meta name="theme-color" content="#f7f7f2">
+<meta name="description" content="Discover your next favourite story. Read previews, save books, follow your reading progress and shop original ebooks on Clickers.">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Clickers">
-<meta property="og:title" content="Clickers — Stories that stay with you">
-<meta property="og:description" content="A home for stories worth feeling. Discover the next book you won't want to put down.">
+<meta property="og:title" content="Clickers — Get lost in a good story">
+<meta property="og:description" content="A lively home for readers, stories and the books you keep coming back to.">
 <meta name="twitter:card" content="summary_large_image">
-<title>Clickers — Stories that stay with you</title>
+<title>Clickers — Get lost in a good story</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500;1,600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="./styles.css">
 </head>
-<body>
-<div class="announcement">A new chapter begins here <span>✳</span> Stories by Yung Dharick</div>
-<header><div class="wrap nav">
-<a class="brand" href="./index.html"><span class="brand-mark">c</span><span>clickers<small>the story house</small></span></a>
-<nav class="navlinks" id="navlinks" aria-label="Main navigation"><a href="./store.html">Discover books</a><a href="#moods">Browse by mood</a><a href="./author.html">Author sign in</a><a href="#author">The author</a></nav>
-<a class="nav-cta" href="./store.html">Explore the collection ↗</a><button class="menu-toggle" id="menuToggle" aria-label="Open navigation" aria-expanded="false">☰</button>
-</div></header>
+<body class="site-home">
+<div class="announcement"><span class="announcement-dot"></span> Your next favourite story is closer than you think <a href="./store.html">Explore the shelves ↗</a></div>
+<header class="site-header">
+  <div class="wrap nav">
+    <a class="brand" href="./index.html" aria-label="Clickers home"><span class="brand-mark">c<span>✳</span></span><span class="brand-word">clickers<small>read into something</small></span></a>
+    <nav class="navlinks" id="navlinks" aria-label="Main navigation">
+      <a href="./store.html">Discover</a><a href="#moods">Browse moods</a><a href="#reading-life">Your reading life</a><a href="#about">About Clickers</a>
+    </nav>
+    <div class="nav-actions"><a class="saved-link" href="./saved.html"><span aria-hidden="true">♡</span> <span class="saved-label">My list</span><b id="savedCount">0</b></a><a class="nav-cta" href="./store.html">Find a book <span>↗</span></a></div>
+    <button class="menu-toggle" id="menuToggle" aria-label="Open navigation" aria-expanded="false">☰</button>
+  </div>
+</header>
 <main>
-<section class="wrap hero">
-<div><div class="eyebrow">A home for stories worth feeling</div><h1>Some stories<br>stay with <em>you.</em></h1><p class="hero-copy">A good story does more than fill a quiet moment. It follows you into the day, changes the way you see something, and makes you turn one more page. Find your next one here.</p><div class="hero-actions"><a class="button" href="./store.html">Find your next read <span>↗</span></a><a class="button light" href="#author">Meet the writer</a></div><div class="hero-note"><i>✳</i> Original writing. Honest feeling. Stories with a pulse.</div></div>
-<div class="hero-visual" aria-label="Clickers literary identity artwork"><div class="hero-disc"></div><div class="orbit"><div class="orbit-label">Turn the page<br>feel something</div></div><div class="hero-type"><small>Clickers · Original writing</small><strong>Words that <em>leave a mark.</em></strong><div class="cover-bottom"><span>Yung Dharick</span><span>Vol. 01</span></div></div><div class="floating-note">"Stay for the story."<span>The Clickers reading room</span></div></div>
-</section>
-<div class="ticker"><div class="ticker-track"><span>Fiction <b>✳</b></span><span>Poetry <b>✳</b></span><span>Romance <b>✳</b></span><span>Suspense <b>✳</b></span><span>Words worth keeping <b>✳</b></span><span>New voices <b>✳</b></span></div></div>
-<section class="wrap section" id="moods"><div class="section-head"><div><div class="eyebrow">Find the feeling</div><h2>What are you in the mood for?</h2></div><p>Sometimes you know the feeling you want before you know the story. Start there.</p></div><div class="moods"><a class="mood" href="./store.html?genre=Romance"><small>01 / Heart first</small><span>Romance</span></a><a class="mood" href="./store.html?genre=Fiction"><small>02 / Another world</small><span>Fiction</span></a><a class="mood" href="./store.html?genre=Poetry"><small>03 / A little pause</small><span>Poetry</span></a><a class="mood" href="./store.html?genre=Thriller"><small>04 / Keep guessing</small><span>Suspense</span></a></div></section>
-<section class="shelf" id="featured"><div class="wrap section"><div class="section-head"><div><div class="eyebrow">On the reading table</div><h2>Stories to discover</h2></div><a class="text-link" href="./store.html">Browse all books ↗</a></div><div class="book-grid" id="featuredBooks"><div class="empty-state"><div class="empty-mark">c</div><h3>The next story is being written.</h3><p>The old catalogue has been cleared. New books and fresh covers will take their place here.</p></div></div></div></section>
-<section class="wrap discovery" id="discover"><div class="section-head"><div><div class="eyebrow">Explore the library</div><h2>Find a story that feels like yours.</h2></div><p>Search by title, author or genre. Your next favourite might be one click away.</p></div><div class="searchbar"><input id="homeSearch" type="search" placeholder="Search stories, genres and authors…" aria-label="Search books"></div><div class="genre-pills" id="homeGenres"></div><div class="book-grid" id="homeBooks"><div class="empty-state"><div class="empty-mark">✳</div><h3>A fresh shelf is on its way.</h3><p>We're making room for the books that belong here. Come back for the next release.</p></div></div></section>
-<section class="author-band" id="author"><div class="wrap author-inner"><div><div class="eyebrow">Behind the words</div><h2>Every story begins with someone who has something to say.</h2><p>Clickers is the literary home of Yung Dharick — a space for original stories, imagined worlds, complicated people and the feelings that make us human.</p></div><a class="button" href="./store.html">Explore the writing ↗</a></div></section>
+  <section class="wrap hero">
+    <div class="hero-copy-block">
+      <div class="eyebrow"><span class="eyebrow-mark">✳</span> THE READING PLACE WITH A PULSE</div>
+      <h1>Get lost in<br>a <em>good story.</em></h1>
+      <p class="hero-intro">Find the book that matches your mood, step into a sample, and keep the stories you love close. There's always another world waiting on the next page.</p>
+      <div class="hero-actions"><a class="button button-primary" href="./store.html">Explore the books <span>↗</span></a><a class="button button-quiet" href="#moods">I'm here to browse <span>↓</span></a></div>
+      <div class="hero-proof"><span><i>✓</i> Read previews</span><span><i>✓</i> Save your favourites</span><span><i>✓</i> Pick up where you left off</span></div>
+    </div>
+    <div class="hero-art" aria-label="Illustration of a lively reading space">
+      <div class="hero-art-top"><span>THE CLICKERS READING CLUB</span><span>VOL. 001</span></div>
+      <div class="hero-sun"></div><div class="hero-orbit orbit-one"></div><div class="hero-orbit orbit-two"></div>
+      <div class="hero-book book-back"><span>TURN<br>THE PAGE</span><small>CLICKERS / STORIES</small></div>
+      <div class="hero-book book-front"><small>A LITTLE SOMETHING TO FEEL</small><strong>One more<br><em>chapter.</em></strong><div class="hero-book-foot"><span>OPEN A BOOK</span><span>↗</span></div></div>
+      <div class="hero-sticker"><span>READ</span><strong>MORE.</strong><i>✳</i></div>
+      <div class="hero-note"><b>your next escape</b><span>is one page away</span></div>
+      <div class="hero-art-bottom"><span>STORIES / POETRY / FICTION / FEELINGS</span><span>SCROLL TO EXPLORE ↓</span></div>
+    </div>
+  </section>
+
+  <section class="mood-section" id="moods">
+    <div class="wrap">
+      <div class="section-heading">
+        <div><div class="eyebrow">WHAT'S THE VIBE?</div><h2>Pick a mood.<br><em>Find a world.</em></h2></div>
+        <p>Sometimes you want butterflies. Sometimes you want a plot twist. Start with the feeling and let the story find you.</p>
+      </div>
+      <div class="mood-grid">
+        <a class="mood-card mood-romance" href="./store.html?genre=Romance"><span class="mood-number">01 / THE HEART</span><span class="mood-emoji">♡</span><strong>Make me<br>feel something.</strong><span class="mood-bottom">Romance <b>↗</b></span></a>
+        <a class="mood-card mood-suspense" href="./store.html?genre=Thriller"><span class="mood-number">02 / THE TWIST</span><span class="mood-emoji">✳</span><strong>Keep me<br>guessing.</strong><span class="mood-bottom">Suspense <b>↗</b></span></a>
+        <a class="mood-card mood-poetry" href="./store.html?genre=Poetry"><span class="mood-number">03 / THE PAUSE</span><span class="mood-emoji">〰</span><strong>Give me<br>beautiful words.</strong><span class="mood-bottom">Poetry <b>↗</b></span></a>
+        <a class="mood-card mood-fiction" href="./store.html?genre=Fiction"><span class="mood-number">04 / THE ESCAPE</span><span class="mood-emoji">✦</span><strong>Take me<br>somewhere new.</strong><span class="mood-bottom">Fiction <b>↗</b></span></a>
+      </div>
+    </div>
+  </section>
+
+  <section class="wrap featured-section" id="featured">
+    <div class="section-heading section-heading-tight">
+      <div><div class="eyebrow">THE BOOKSHELF IS OPEN</div><h2>Something good is <em>in here.</em></h2></div>
+      <a class="text-link" href="./store.html">See every book <span>↗</span></a>
+    </div>
+    <div class="book-grid" id="featuredBooks">
+      <div class="shelf-empty"><div class="shelf-empty-art"><span>YOUR NEXT<br>FAVOURITE</span><b>?</b></div><div><span class="shelf-kicker">A FRESH START</span><h3>This shelf is making room for new stories.</h3><p>The old catalogue has been cleared. New books will appear here as they are published — ready for you to discover, preview and keep.</p><a class="text-link" href="./store.html">Explore the bookshop anyway ↗</a></div></div>
+    </div>
+  </section>
+
+  <section class="reading-life" id="reading-life">
+    <div class="wrap reading-life-inner">
+      <div class="reading-life-copy"><div class="eyebrow eyebrow-light">A LITTLE SPACE THAT'S YOURS</div><h2>Your reading life,<br><em>all in one place.</em></h2><p>Keep your favourite finds close and come back to the page whenever you're ready. Your list and reading progress are saved on this device.</p>
+        <div class="reading-benefits"><div><span>01</span><b>Keep a list</b><small>Save books for later.</small></div><div><span>02</span><b>Keep your place</b><small>Pick up where you paused.</small></div><div><span>03</span><b>Make it yours</b><small>Choose a reading look you love.</small></div></div>
+      </div>
+      <div class="continue-card" id="continueReading"><div class="continue-card-top"><span>YOUR READING CORNER</span><span class="live-dot">● READY WHEN YOU ARE</span></div><div class="continue-empty"><div class="mini-book"><span>OPEN<br>A BOOK</span><b>✳</b></div><div><h3>Your next chapter starts here.</h3><p>Open a book preview and we'll remember where you stopped.</p><a href="./store.html" class="button button-lime">Find something to read ↗</a></div></div></div>
+    </div>
+  </section>
+
+  <section class="wrap discovery-section" id="discover">
+    <div class="section-heading"><div><div class="eyebrow">WANDER A LITTLE</div><h2>Follow your <em>curiosity.</em></h2></div><p>Search for a title, a writer or a genre. There's no wrong way into a good story.</p></div>
+    <label class="search-field"><span aria-hidden="true">⌕</span><input id="homeSearch" type="search" placeholder="What would you like to read today?" aria-label="Search books"><kbd>/</kbd></label>
+    <div class="genre-pills" id="homeGenres"></div>
+    <div class="book-grid" id="homeBooks"></div>
+  </section>
+
+  <section class="writer-section" id="about">
+    <div class="wrap writer-inner"><div class="writer-art"><span class="writer-art-mark">c.</span><span class="writer-art-caption">MADE OF WORDS<br>BUILT FOR READERS</span></div><div class="writer-copy"><div class="eyebrow">BEHIND THE STORIES</div><h2>A place for the words that <em>stay with you.</em></h2><p>Clickers is a literary home for original writing by Yung Dharick — a growing collection of imagined worlds, complicated people and honest feelings. Come for a story. Stay for the next one.</p><a class="button button-dark" href="./store.html">Meet your next read <span>↗</span></a></div></div>
+  </section>
 </main>
-<footer><div class="wrap foot"><div><strong>clickers.</strong><div style="margin-top:6px">Stories that stay with you.</div></div><div class="foot-links"><a href="./store.html">Bookshop</a><a href="#author">About the author</a><a href="#moods">Browse by mood</a></div><span>© <span id="year"></span> Clickers</span></div></footer>
-<div class="reader" id="reader" aria-hidden="true"><div class="reader-panel" role="dialog" aria-modal="true" aria-labelledby="readerTitle"><div class="reader-top"><strong id="readerBookTitle">Clickers Reading Room</strong><button class="reader-close" id="closeReader" aria-label="Close reader">×</button></div><h2 id="readerTitle">A story begins.</h2><div class="reader-subtitle" id="readerSubtitle"></div><div class="reader-content" id="readerContent"></div><div class="reader-controls"><button id="prevChapter" disabled>← Previous</button><button id="nextChapter" disabled>Next chapter →</button></div></div></div><div class="toast" id="toast" role="status"></div>
-<script src="./author-config.js"></script><script src="./books.js"></script><script src="./storefront.js"></script></body></html>
+<footer class="site-footer"><div class="wrap footer-main"><div class="footer-brand"><a class="brand brand-footer" href="./index.html"><span class="brand-mark">c<span>✳</span></span><span class="brand-word">clickers<small>read into something</small></span></a><p>Good stories. Good company.<br>One more chapter.</p></div><div class="footer-column"><b>EXPLORE</b><a href="./store.html">Discover books</a><a href="#moods">Browse by mood</a><a href="./saved.html">My reading list</a></div><div class="footer-column"><b>THE READING LIFE</b><a href="#reading-life">Your reading corner</a><a href="./author.html">Author sign in</a><a href="#about">About Clickers</a></div><div class="footer-note"><span>✳</span><strong>Stay curious.<br>Keep reading.</strong></div></div><div class="wrap footer-bottom"><span>© <span id="year"></span> Clickers</span><span>Made for people who love a good story.</span><a href="./admin.html">Author access ↗</a></div></footer>
+
+<div class="reader" id="reader" aria-hidden="true"><div class="reader-panel reader-theme-paper" role="dialog" aria-modal="true" aria-labelledby="readerTitle">
+  <div class="reader-top"><div><span class="reader-kicker">THE CLICKERS READING ROOM</span><strong id="readerBookTitle">A story begins.</strong></div><button class="reader-close" id="closeReader" aria-label="Close reader">×</button></div>
+  <div class="reader-toolbar"><div class="reader-tools-group"><button id="fontDown" type="button" aria-label="Decrease text size">A−</button><button id="fontUp" type="button" aria-label="Increase text size">A+</button></div><div class="reader-tools-group reader-themes"><button type="button" data-reader-theme="paper" aria-label="Paper theme" class="active">○</button><button type="button" data-reader-theme="warm" aria-label="Warm theme">◐</button><button type="button" data-reader-theme="night" aria-label="Night theme">●</button></div><button class="reader-save" id="readerSave" type="button">♡ Save book</button></div>
+  <article class="reader-page"><div class="reader-chapter-label" id="readerSubtitle"></div><h2 id="readerTitle">A story begins.</h2><div class="reader-content" id="readerContent"></div></article>
+  <div class="reader-controls"><button id="prevChapter" disabled>← Previous</button><span id="readerProgress">Preview</span><button id="nextChapter" disabled>Next chapter →</button></div>
+</div></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="./author-config.js"></script><script src="./books.js"></script><script src="./storefront.js"></script>
+</body></html>
