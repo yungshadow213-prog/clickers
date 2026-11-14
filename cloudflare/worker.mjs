@@ -288,6 +288,7 @@ async function checkoutVerify(url, env, cors) {
   return response(result.value, 200, cors);
 }
 async function paystackWebhook(request, env) {
+  if (!configReady(env)) return response(configurationError(env), 503);
   if (!env.PAYSTACK_SECRET_KEY) return response({ error: "Webhook is not configured." }, 503);
   const rawBody = await request.text();
   if (!await verifyPaystackWebhookSignature(request, env, rawBody)) return response({ error: "Invalid webhook signature." }, 401);
@@ -726,7 +727,7 @@ export default {
       return response({ ok: true, service: "clickers-private-api", authorApiReady: missing.length === 0, paymentReady: Boolean(env.PAYSTACK_SECRET_KEY), missingConfiguration: missing }, 200, cors);
     }
     if (!url.pathname.startsWith("/api/")) return response({ error: "Not found." }, 404, cors);
-    if (!configReady(env) && url.pathname.startsWith("/api/admin/")) return response(configurationError(env), 503, cors);
+    if (!configReady(env)) return response(configurationError(env), 503, cors);
 
     try {
       if (url.pathname === "/api/paystack/webhook" && request.method === "POST") {
