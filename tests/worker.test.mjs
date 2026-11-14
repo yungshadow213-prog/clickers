@@ -395,6 +395,9 @@ test("checkout initialization uses the saved NGN price and never trusts a client
       assert.equal(body.currency, "NGN");
       assert.equal(body.email, "reader@example.com");
       assert.equal(body.callback_url, "https://yungshadow213-prog.github.io/clickers/checkout.html");
+      const metadata = JSON.parse(body.metadata);
+      assert.equal(metadata.book_id, bookId);
+      assert.equal(metadata.order_id, "order-id");
       assert.equal(init.headers.authorization, "Bearer sk_test_clickers");
       return new Response(JSON.stringify({ status: true, data: { authorization_url: "https://checkout.paystack.com/example" } }), { status: 200 });
     }
