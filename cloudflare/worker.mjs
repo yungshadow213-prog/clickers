@@ -143,7 +143,8 @@ function validateBook(body, partial = false) {
   if ("for_sale" in body || !partial) out.for_sale = body.for_sale === true;
   if ("ebook_file_path" in body || !partial) {
     const filePath = cleanText(body.ebook_file_path, 500);
-    if (filePath && !/^[0-9a-f-]{36}\\/books\\/[0-9a-f-]{36}\\/[a-zA-Z0-9._-]+\\.pdf$/i.test(filePath)) return { error: "The private ebook file path is invalid." };
+    const pathParts = filePath.split("/");
+    if (filePath && !(pathParts.length === 4 && /^[0-9a-f-]{36}$/i.test(pathParts[0]) && pathParts[1] === "books" && /^[0-9a-f-]{36}$/i.test(pathParts[2]) && /^[a-zA-Z0-9._-]+\\.pdf$/i.test(pathParts[3]))) return { error: "The private ebook file path is invalid." };
     out.ebook_file_path = filePath;
   }
   if (out.for_sale && (out.price_minor < 100 || !out.ebook_file_path)) return { error: "A paid ebook needs a price of at least ₦1 and an uploaded PDF before it can be saved for sale." };
