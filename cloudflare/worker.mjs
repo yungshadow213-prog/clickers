@@ -7,7 +7,7 @@ function response(data, status = 200, cors = {}) {
 function corsHeaders(request, env) {
   const origin = request.headers.get("Origin");
   const allowed = env.ALLOWED_ORIGIN || "";
-  const headers = { "access-control-allow-methods": "GET, POST, PATCH, DELETE, OPTIONS", "access-control-allow-headers": "authorization, content-type", "vary": "Origin" };
+  const headers = { "access-control-allow-methods": "GET, POST, PATCH, DELETE, OPTIONS", "access-control-allow-headers": "authorization, content-type, x-paystack-signature, paystack-signature", "vary": "Origin" };
   if (origin && allowed && origin === allowed) headers["access-control-allow-origin"] = origin;
   return headers;
 }
@@ -130,10 +130,173 @@ function validateBook(body, partial = false) {
     out.slug = slugify(body.slug || body.title);
     if (!out.slug) return { error: "A valid book slug is required." };
   }
-  if ("status" in body || !partial) {
-    out.status = body.status === "published" ? "published" : "draft";
+  if ("status" in body || !partial) out.status = body.status === "published" ? "published" : "draft";
+  if ("price_minor" in body || !partial) {
+    const amount = Number(body.price_minor ?? 0);
+    if (!Number.isSafeInteger(amount) || amount < 0 || amount > 1000000000) return { error: "Enter a valid ebook price in kobo." };
+    out.price_minor = amount;
   }
+  if ("currency" in body || !partial) {
+    if ((body.currency || "NGN") !== "NGN") return { error: "Clickers currently supports NGN checkout only." };
+    out.currency = "NGN";
+  }
+  if ("for_sale" in body || !partial) out.for_sale = body.for_sale === true;
+  if ("ebook_file_path" in body || !partial) {
+    const filePath = cleanText(body.ebook_file_path, 500);
+    if (filePath && !/^[0-9a-f-]{36}\\/books\\/[0-9a-f-]{36}\\/[a-zA-Z0-9._-]+\\.pdf$/i.test(filePath)) return { error: "The private ebook file path is invalid." };
+    out.ebook_file_path = filePath;
+  }
+  if (out.for_sale && (out.price_minor < 100 || !out.ebook_file_path)) return { error: "A paid ebook needs a price of at least ₦1 and an uploaded PDF before it can be saved for sale." };
   return { value: out };
+}
+
+async function paystackRequest(path, env, init = {}) {
+  if (!env.PAYSTACK_SECRET_KEY) throw new Error("Paystack is not configured yet.");
+  const result = await fetch("https://api.paystack.co" + path, {
+    ...init,
+    headers: {
+      authorization: "Bearer " + env.PAYSTACK_SECRET_KEY,
+      "content-type": "application/json",
+      ...(init.headers || {})
+    }
+  });
+  const data = await result.json().catch(() => null);
+  if (!result.ok || !data?.status) {
+    const error = new Error(data?.message || "Paystack could not complete the request.");
+    error.status = result.status >= 400 && result.status < 500 ? 400 : 502;
+    throw error;
+  }
+  return data.data;
+}
+function safeReference(value) {
+  return typeof value === "string" && /^[A-Za-z0-9.=\-]{12,80}$/.test(value);
+}
+async function signPrivateEbook(env, objectPath) {
+  if (!objectPath || objectPath.includes("..") || objectPath.startsWith("/")) throw new Error("The ebook file is unavailable.");
+  const encoded = objectPath.split("/").map(encodeURIComponent).join("/");
+  const result = await fetch(env.SUPABASE_URL.replace(/\/+$/, "") + "/storage/v1/object/sign/clickers-private/" + encoded, {
+    method: "POST",
+    headers: { apikey: env.SUPABASE_SECRET_KEY, "content-type": "application/json" },
+    body: JSON.stringify({ expiresIn: 600, download: true })
+  });
+  const data = await result.json().catch(() => ({}));
+  if (!result.ok || !data.signedURL) throw new Error("The paid ebook could not be prepared for download.");
+  return data.signedURL.startsWith("http") ? data.signedURL : env.SUPABASE_URL.replace(/\/+$/, "") + "/storage/v1" + data.signedURL;
+}
+async function verifyPaidOrder(env, reference) {
+  if (!safeReference(reference)) return { error: response({ error: "Invalid payment reference." }, 400) };
+  const rows = await db(env, "clickers_orders", {
+    query: "reference=eq." + encodeURIComponent(reference) + "&select=id,reference,book_title,amount_minor,currency,buyer_email,status,ebook_file_path&limit=1"
+  });
+  if (!rows?.length) return { error: response({ error: "Order not found." }, 404) };
+  const order = rows[0];
+  const payment = await paystackRequest("/transaction/verify/" + encodeURIComponent(reference), env);
+  if (payment.reference !== reference || payment.status !== "success" ||
+      Number(payment.amount) !== Number(order.amount_minor) ||
+      String(payment.currency).toUpperCase() !== String(order.currency).toUpperCase() ||
+      String(payment.customer?.email || "").toLowerCase() !== String(order.buyer_email).toLowerCase()) {
+    return { error: response({ error: "Payment has not been confirmed. No download has been released." }, 402) };
+  }
+  if (order.status !== "paid") {
+    await db(env, "clickers_orders", {
+      method: "PATCH", query: "id=eq." + order.id + "&status=neq.paid",
+      body: { status: "paid", paid_at: new Date().toISOString(), gateway_response: { id: payment.id, channel: payment.channel, paid_at: payment.paid_at } },
+      prefer: "return=minimal"
+    });
+  }
+  const downloadUrl = await signPrivateEbook(env, order.ebook_file_path);
+  return { value: { ok: true, status: "paid", book_title: order.book_title, download_url: downloadUrl, expires_in: 600 } };
+}
+async function hmacHex(secret, value) {
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-512" }, false, ["sign"]);
+  const signature = new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(value)));
+  return Array.from(signature, byte => byte.toString(16).padStart(2, "0")).join("");
+}
+function constantTimeEqual(a, b) {
+  if (typeof a !== "string" || typeof b !== "string" || a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+async function verifyPaystackWebhookSignature(request, env, rawBody) {
+  const modern = request.headers.get("Paystack-Signature");
+  if (modern && env.PAYSTACK_WEBHOOK_SECRET) {
+    const parts = modern.split(",");
+    const timestamp = parts.find(part => part.trim().startsWith("t="))?.trim().slice(2);
+    const signatures = parts.filter(part => part.trim().startsWith("v1=")).map(part => part.trim().slice(3).split(":").at(-1));
+    const seconds = Number(timestamp);
+    if (Number.isFinite(seconds) && Math.abs(Date.now() / 1000 - seconds) <= 300) {
+      const expected = await hmacHex(env.PAYSTACK_WEBHOOK_SECRET, timestamp + "." + rawBody);
+      if (signatures.some(signature => constantTimeEqual(signature, expected))) return true;
+    }
+  }
+  const legacy = request.headers.get("x-paystack-signature");
+  if (legacy && env.PAYSTACK_SECRET_KEY && /^[a-f0-9]{128}$/i.test(legacy)) {
+    const expected = await hmacHex(env.PAYSTACK_SECRET_KEY, rawBody);
+    return constantTimeEqual(legacy.toLowerCase(), expected);
+  }
+  return false;
+}
+async function checkoutInitialize(request, env, cors) {
+  if (!configReady(env)) return response(configurationError(env), 503, cors);
+  if (!env.PAYSTACK_SECRET_KEY) return response({ error: "Online checkout is being configured. Please try again later." }, 503, cors);
+  const body = await readJson(request);
+  const bookId = typeof body?.book_id === "string" ? body.book_id : "";
+  const email = cleanText(body?.email, 254).toLowerCase();
+  if (!/^[0-9a-f-]{36}$/i.test(bookId) || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return response({ error: "Enter a valid email address to continue." }, 400, cors);
+  }
+  const books = await db(env, "clickers_books", {
+    query: "owner_id=eq." + encodeURIComponent(env.OWNER_USER_ID) + "&id=eq." + bookId + "&status=eq.published&for_sale=eq.true&select=id,title,price_minor,currency,ebook_file_path&limit=1"
+  });
+  if (!books?.length || !books[0].ebook_file_path || Number(books[0].price_minor) < 100) {
+    return response({ error: "This ebook is not currently available for purchase." }, 404, cors);
+  }
+  const book = books[0];
+  const reference = "clk-" + crypto.randomUUID().replace(/-/g, "");
+  const orderRows = await db(env, "clickers_orders", {
+    method: "POST", query: "select=id,reference",
+    body: {
+      owner_id: env.OWNER_USER_ID, book_id: book.id, book_title: book.title,
+      amount_minor: book.price_minor, currency: book.currency || "NGN",
+      buyer_email: email, reference, status: "pending", ebook_file_path: book.ebook_file_path
+    }, prefer: "return=representation"
+  });
+  if (!orderRows?.length) return response({ error: "Could not create the order. Please try again." }, 502, cors);
+  const site = (env.CLICKERS_SITE_URL || "https://yungshadow213-prog.github.io/clickers").replace(/\/+$/, "");
+  try {
+    const payment = await paystackRequest("/transaction/initialize", env, {
+      method: "POST",
+      body: JSON.stringify({
+        email, amount: String(book.price_minor), currency: book.currency || "NGN",
+        reference, callback_url: site + "/checkout.html",
+        metadata: { book_id: book.id, book_title: book.title, order_id: orderRows[0].id }
+      })
+    });
+    return response({ authorization_url: payment.authorization_url, reference }, 200, cors);
+  } catch (error) {
+    await db(env, "clickers_orders", { method: "PATCH", query: "id=eq." + orderRows[0].id, body: { status: "failed" }, prefer: "return=minimal" }).catch(() => {});
+    return response({ error: error.message }, 502, cors);
+  }
+}
+async function checkoutVerify(url, env, cors) {
+  if (!configReady(env)) return response(configurationError(env), 503, cors);
+  if (!env.PAYSTACK_SECRET_KEY) return response({ error: "Online checkout is being configured. Please try again later." }, 503, cors);
+  const result = await verifyPaidOrder(env, url.searchParams.get("reference"));
+  if (result.error) return new Response(await result.error.text(), { status: result.error.status, headers: { ...Object.fromEntries(result.error.headers), ...cors } });
+  return response(result.value, 200, cors);
+}
+async function paystackWebhook(request, env) {
+  if (!env.PAYSTACK_SECRET_KEY) return response({ error: "Webhook is not configured." }, 503);
+  const rawBody = await request.text();
+  if (!await verifyPaystackWebhookSignature(request, env, rawBody)) return response({ error: "Invalid webhook signature." }, 401);
+  let event;
+  try { event = JSON.parse(rawBody); } catch { return response({ error: "Invalid webhook payload." }, 400); }
+  if (event?.event === "charge.success" && event.data?.reference) {
+    const result = await verifyPaidOrder(env, event.data.reference);
+    if (result.error && result.error.status !== 402) return result.error;
+  }
+  return response({ received: true });
 }
 
 function validateChapter(body, partial = false) {
@@ -184,9 +347,30 @@ async function adminRoute(request, env, url, user) {
     return response({ url: base + "/storage/v1/object/public/clickers-book-images/" + objectPath, name: cleanText(file.name, 180) }, 201);
   }
 
+  if (path === "/api/admin/ebooks" && method === "POST") {
+    let form;
+    try { form = await request.formData(); } catch { return response({ error: "Send a PDF file." }, 400); }
+    const file = form.get("file");
+    const bookId = cleanText(form.get("book_id"), 80);
+    if (!/^[0-9a-f-]{36}$/i.test(bookId)) return response({ error: "Save the book before uploading its ebook PDF." }, 400);
+    if (!file || typeof file.arrayBuffer !== "function" || file.type !== "application/pdf") return response({ error: "Choose a PDF ebook file." }, 400);
+    if (file.size < 1 || file.size > 50 * 1024 * 1024) return response({ error: "Ebook PDFs must be 50 MB or smaller." }, 400);
+    const owned = await db(env, "clickers_books", { query: ownerFilter(ownerId) + "&id=eq." + bookId + "&select=id&limit=1" });
+    if (!owned?.length) return response({ error: "Book not found." }, 404);
+    const objectPath = ownerId + "/books/" + bookId + "/" + crypto.randomUUID() + ".pdf";
+    const encoded = objectPath.split("/").map(encodeURIComponent).join("/");
+    const upload = await fetch(env.SUPABASE_URL.replace(/\/+$/, "") + "/storage/v1/object/clickers-private/" + encoded, {
+      method: "POST",
+      headers: { apikey: env.SUPABASE_SECRET_KEY, "content-type": "application/pdf", "x-upsert": "false" },
+      body: await file.arrayBuffer()
+    });
+    if (!upload.ok) return response({ error: "Private ebook storage rejected the upload: " + (await upload.text()).slice(0, 200) }, 502);
+    return response({ path: objectPath, name: cleanText(file.name, 180), size: file.size }, 201);
+  }
+
   if (path === "/api/admin/books" && method === "GET") {
     return response(await db(env, "clickers_books", {
-      query: ownerFilter(ownerId) + "&select=id,slug,title,description,genre,cover_path,extra_images,status,created_at,updated_at&order=updated_at.desc"
+      query: ownerFilter(ownerId) + "&select=id,slug,title,description,genre,cover_path,extra_images,price_minor,currency,for_sale,ebook_file_path,status,created_at,updated_at&order=updated_at.desc"
     }));
   }
 
@@ -199,7 +383,7 @@ async function adminRoute(request, env, url, user) {
       return response({ error: "Save the book as a draft, publish at least one free chapter, then publish the book." }, 400);
     }
     const rows = await db(env, "clickers_books", {
-      method: "POST", query: "select=id,slug,title,description,genre,cover_path,extra_images,status,created_at,updated_at",
+      method: "POST", query: "select=id,slug,title,description,genre,cover_path,extra_images,price_minor,currency,for_sale,ebook_file_path,status,created_at,updated_at",
       body: { ...parsed.value, owner_id: ownerId }, prefer: "return=representation"
     });
     return response(rows?.[0] || null, 201);
@@ -212,6 +396,10 @@ async function adminRoute(request, env, url, user) {
     const parsed = validateBook(body, true);
     if (parsed.error) return response({ error: parsed.error }, 400);
     if (!Object.keys(parsed.value).length) return response({ error: "There are no changes to save." }, 400);
+    if (parsed.value.status === "published" && parsed.value.for_sale &&
+        (parsed.value.price_minor < 100 || !parsed.value.ebook_file_path)) {
+      return response({ error: "Upload the paid PDF and set a price before publishing this book for sale." }, 400);
+    }
     if (parsed.value.status === "published") {
       const freeChapters = await db(env, "clickers_chapters", {
         query: ownerFilter(ownerId) + "&book_id=eq." + bookMatch[1] + "&status=eq.published&is_paid=eq.false&select=id&limit=1"
@@ -221,7 +409,7 @@ async function adminRoute(request, env, url, user) {
       }
     }
     const rows = await db(env, "clickers_books", {
-      method: "PATCH", query: ownerFilter(ownerId) + "&id=eq." + bookMatch[1] + "&select=id,slug,title,description,genre,cover_path,extra_images,status,created_at,updated_at",
+      method: "PATCH", query: ownerFilter(ownerId) + "&id=eq." + bookMatch[1] + "&select=id,slug,title,description,genre,cover_path,extra_images,price_minor,currency,for_sale,ebook_file_path,status,created_at,updated_at",
       body: parsed.value, prefer: "return=representation"
     });
     if (!rows?.length) return response({ error: "Book not found." }, 404);
@@ -534,15 +722,24 @@ export default {
     }
     if (url.pathname === "/api/health" && request.method === "GET") {
       const missing = missingConfig(env);
-      return response({ ok: true, service: "clickers-private-api", authorApiReady: missing.length === 0, missingConfiguration: missing }, 200, cors);
+      return response({ ok: true, service: "clickers-private-api", authorApiReady: missing.length === 0, paymentReady: Boolean(env.PAYSTACK_SECRET_KEY), missingConfiguration: missing }, 200, cors);
     }
     if (!url.pathname.startsWith("/api/")) return response({ error: "Not found." }, 404, cors);
+      if (url.pathname === "/api/paystack/webhook" && request.method === "POST") {
+        return await paystackWebhook(request, env);
+      }
+      if (url.pathname === "/api/checkout/initialize" && request.method === "POST") {
+        return await checkoutInitialize(request, env, cors);
+      }
+      if (url.pathname === "/api/checkout/verify" && request.method === "GET") {
+        return await checkoutVerify(url, env, cors);
+      }
     if (!configReady(env)) return response(configurationError(env), 503, cors);
 
     try {
       if (url.pathname === "/api/books" && request.method === "GET") {
         const books = await db(env, "clickers_books", {
-          query: "owner_id=eq." + encodeURIComponent(env.OWNER_USER_ID) + "&status=eq.published&created_at=gte.2026-11-14T00:00:00Z&select=id,slug,title,description,genre,cover_path,extra_images&order=updated_at.desc"
+          query: "owner_id=eq." + encodeURIComponent(env.OWNER_USER_ID) + "&status=eq.published&created_at=gte.2026-11-14T00:00:00Z&select=id,slug,title,description,genre,cover_path,extra_images,price_minor,currency,for_sale&order=updated_at.desc"
         });
         return response(books, 200, cors);
       }
