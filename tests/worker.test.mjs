@@ -15,7 +15,7 @@ afterEach(() => { globalThis.fetch = originalFetch; });
 test("health check does not require credentials", async () => {
   const result = await worker.fetch(new Request("https://api.example.workers.dev/api/health"), {});
   assert.equal(result.status, 200);
-  assert.deepEqual(await result.json(), { ok: true, service: "clickers-private-api", authorApiReady: false, missingConfiguration: ["SUPABASE_URL", "SUPABASE_PUBLISHABLE_KEY", "SUPABASE_SECRET_KEY", "OWNER_USER_ID"] });
+  assert.deepEqual(await result.json(), { ok: true, service: "clickers-private-api", authorApiReady: false, paymentReady: false, missingConfiguration: ["SUPABASE_URL", "SUPABASE_PUBLISHABLE_KEY", "SUPABASE_SECRET_KEY", "OWNER_USER_ID"] });
 });
 
 test("health check reports missing configuration names without exposing values", async () => {
@@ -23,6 +23,7 @@ test("health check reports missing configuration names without exposing values",
   const result = await worker.fetch(new Request("https://api.example.workers.dev/api/health"), configured);
   const data = await result.json();
   assert.equal(data.authorApiReady, true);
+  assert.equal(data.paymentReady, false);
   assert.deepEqual(data.missingConfiguration, []);
   assert.equal(JSON.stringify(data).includes("do-not-return-this"), false);
 });
@@ -364,4 +365,150 @@ test("cannot delete the last free chapter of a published book", async () => {
   assert.equal(result.status, 400);
   assert.match((await result.json()).error, /last published free chapter/i);
   assert.equal(chapterDeleted, false);
+});
+
+
+test("checkout initialization uses the saved NGN price and never trusts a client-supplied amount", async () => {
+  const paymentEnv = { ...env, PAYSTACK_SECRET_KEY: "sk_test_clickers" };
+  const bookId = "22222222-2222-4222-8222-222222222222";
+  const calls = [];
+  globalThis.fetch = async (url, init = {}) => {
+    const parsed = new URL(String(url));
+    calls.push({ parsed, init });
+    if (parsed.pathname === "/rest/v1/clickers_books") {
+      return new Response(JSON.stringify([{
+        id: bookId, title: "A Clickers Story", price_minor: 250000,
+        currency: "NGN", ebook_file_path: env.OWNER_USER_ID + "/books/" + bookId + "/book.pdf"
+      }]), { status: 200 });
+    }
+    if (parsed.pathname === "/rest/v1/clickers_orders" && init.method === "POST") {
+      const order = JSON.parse(init.body);
+      assert.equal(order.amount_minor, 250000);
+      assert.equal(order.currency, "NGN");
+      assert.equal(order.buyer_email, "reader@example.com");
+      assert.equal(order.status, "pending");
+      return new Response(JSON.stringify([{ id: "order-id", reference: order.reference }]), { status: 201 });
+    }
+    if (parsed.hostname === "api.paystack.co" && parsed.pathname === "/transaction/initialize") {
+      const body = JSON.parse(init.body);
+      assert.equal(body.amount, "250000");
+      assert.equal(body.currency, "NGN");
+      assert.equal(body.email, "reader@example.com");
+      assert.equal(body.callback_url, "https://yungshadow213-prog.github.io/clickers/checkout.html");
+      assert.equal(init.headers.authorization, "Bearer sk_test_clickers");
+      return new Response(JSON.stringify({ status: true, data: { authorization_url: "https://checkout.paystack.com/example" } }), { status: 200 });
+    }
+    throw new Error("Unexpected URL " + parsed);
+  };
+  const result = await worker.fetch(new Request("https://api.example.workers.dev/api/checkout/initialize", {
+    method: "POST",
+    headers: { origin: env.ALLOWED_ORIGIN, "content-type": "application/json" },
+    body: JSON.stringify({ book_id: bookId, email: "reader@example.com", amount: 1 })
+  }), paymentEnv);
+  assert.equal(result.status, 200);
+  const data = await result.json();
+  assert.equal(data.authorization_url, "https://checkout.paystack.com/example");
+  assert.match(data.reference, /^clk-[a-f0-9]{32}$/);
+  assert.ok(calls.some(call => call.parsed.pathname === "/rest/v1/clickers_orders"));
+});
+
+test("ebook download is released only after Paystack confirms matching amount, currency, and buyer email", async () => {
+  const paymentEnv = { ...env, PAYSTACK_SECRET_KEY: "sk_test_clickers" };
+  const reference = "clk-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  const objectPath = env.OWNER_USER_ID + "/books/22222222-2222-4222-8222-222222222222/book.pdf";
+  let signed = false, markedPaid = false;
+  globalThis.fetch = async (url, init = {}) => {
+    const parsed = new URL(String(url));
+    if (parsed.pathname === "/rest/v1/clickers_orders" && (!init.method || init.method === "GET")) {
+      return new Response(JSON.stringify([{
+        id: "order-id", reference, book_title: "A Clickers Story", amount_minor: 250000,
+        currency: "NGN", buyer_email: "reader@example.com", status: "pending", ebook_file_path: objectPath
+      }]), { status: 200 });
+    }
+    if (parsed.hostname === "api.paystack.co" && parsed.pathname === "/transaction/verify/" + reference) {
+      return new Response(JSON.stringify({ status: true, data: {
+        reference, status: "success", amount: 250000, currency: "NGN",
+        customer: { email: "reader@example.com" }, id: 12345, channel: "card", paid_at: "2026-11-14T00:00:00Z"
+      } }), { status: 200 });
+    }
+    if (parsed.pathname === "/rest/v1/clickers_orders" && init.method === "PATCH") {
+      markedPaid = true;
+      return new Response(null, { status: 204 });
+    }
+    if (parsed.pathname.startsWith("/storage/v1/object/sign/clickers-private/")) {
+      signed = true;
+      assert.equal(init.headers.apikey, env.SUPABASE_SECRET_KEY);
+      return new Response(JSON.stringify({ signedURL: "/object/sign/clickers-private/book.pdf?token=temporary" }), { status: 200 });
+    }
+    throw new Error("Unexpected URL " + parsed);
+  };
+  const result = await worker.fetch(new Request("https://api.example.workers.dev/api/checkout/verify?reference=" + reference, {
+    headers: { origin: env.ALLOWED_ORIGIN }
+  }), paymentEnv);
+  assert.equal(result.status, 200);
+  const data = await result.json();
+  assert.equal(data.ok, true);
+  assert.equal(data.status, "paid");
+  assert.equal(data.expires_in, 600);
+  assert.match(data.download_url, /^https:\/\/example\.supabase\.co\/storage\/v1\/object\/sign/);
+  assert.equal(markedPaid, true);
+  assert.equal(signed, true);
+});
+
+test("a mismatched Paystack amount never releases the private ebook", async () => {
+  const paymentEnv = { ...env, PAYSTACK_SECRET_KEY: "sk_test_clickers" };
+  const reference = "clk-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+  let signed = false, markedPaid = false;
+  globalThis.fetch = async (url, init = {}) => {
+    const parsed = new URL(String(url));
+    if (parsed.pathname === "/rest/v1/clickers_orders" && (!init.method || init.method === "GET")) {
+      return new Response(JSON.stringify([{
+        id: "order-id", reference, book_title: "A Clickers Story", amount_minor: 250000,
+        currency: "NGN", buyer_email: "reader@example.com", status: "pending",
+        ebook_file_path: env.OWNER_USER_ID + "/books/22222222-2222-4222-8222-222222222222/book.pdf"
+      }]), { status: 200 });
+    }
+    if (parsed.hostname === "api.paystack.co") {
+      return new Response(JSON.stringify({ status: true, data: {
+        reference, status: "success", amount: 100, currency: "NGN", customer: { email: "reader@example.com" }
+      } }), { status: 200 });
+    }
+    if (parsed.pathname === "/rest/v1/clickers_orders" && init.method === "PATCH") markedPaid = true;
+    if (parsed.pathname.includes("/storage/v1/object/sign/")) signed = true;
+    throw new Error("Unexpected URL " + parsed);
+  };
+  const result = await worker.fetch(new Request("https://api.example.workers.dev/api/checkout/verify?reference=" + reference), paymentEnv);
+  assert.equal(result.status, 402);
+  assert.equal(signed, false);
+  assert.equal(markedPaid, false);
+});
+
+test("author ebook uploads are stored in the private bucket under the owner's book folder", async () => {
+  const bookId = "22222222-2222-4222-8222-222222222222";
+  let uploadUrl = "";
+  globalThis.fetch = async (url, init = {}) => {
+    const parsed = new URL(String(url));
+    if (parsed.pathname === "/auth/v1/user") return new Response(JSON.stringify({ id: env.OWNER_USER_ID }), { status: 200 });
+    if (parsed.pathname === "/rest/v1/clickers_books") return new Response(JSON.stringify([{ id: bookId }]), { status: 200 });
+    if (parsed.pathname.startsWith("/storage/v1/object/clickers-private/")) {
+      uploadUrl = parsed.pathname;
+      assert.equal(init.headers["content-type"], "application/pdf");
+      assert.equal(init.headers.apikey, env.SUPABASE_SECRET_KEY);
+      return new Response(JSON.stringify({ Key: "private-ebook" }), { status: 200 });
+    }
+    throw new Error("Unexpected URL " + parsed);
+  };
+  const form = new FormData();
+  form.append("book_id", bookId);
+  form.append("file", new Blob(["%PDF-1.7 test"], { type: "application/pdf" }), "book.pdf");
+  const result = await worker.fetch(new Request("https://api.example.workers.dev/api/admin/ebooks", {
+    method: "POST",
+    headers: { origin: env.ALLOWED_ORIGIN, authorization: "Bearer owner-session" },
+    body: form
+  }), env);
+  assert.equal(result.status, 201);
+  const data = await result.json();
+  assert.match(data.path, new RegExp("^" + env.OWNER_USER_ID + "/books/" + bookId + "/"));
+  assert.match(uploadUrl, /\/storage\/v1\/object\/clickers-private\//);
+  assert.equal(uploadUrl.includes("public"), false);
 });
