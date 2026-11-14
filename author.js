@@ -4,7 +4,7 @@ const config = window.CLICKERS_CONFIG || {};
 const $ = id => document.getElementById(id);
 const loginSection = $("loginSection");
 const studioSection = $("studioSection");
-const state = { supabase: null, session: null, books: [], book: null, chapters: [], chapter: null, isNewBook: false, isNewChapter: false };
+const state = { supabase: null, session: null, books: [], orders: [], book: null, chapters: [], chapter: null, isNewBook: false, isNewChapter: false };
 
 function status(id, message = "", kind = "") {
   const node = $(id);
@@ -435,11 +435,45 @@ async function signIn(event) {
     button.disabled = false;
   }
 }
+function formatNaira(minor) {
+  return "₦" + (Number(minor || 0) / 100).toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function renderOrders() {
+  const host = $("ordersList");
+  host.replaceChildren();
+  const paid = state.orders.filter(order => order.status === "paid");
+  const revenue = paid.reduce((sum, order) => sum + Number(order.amount_minor || 0), 0);
+  $("ordersCount").textContent = state.orders.length + (state.orders.length === 1 ? " order" : " orders");
+  $("ordersSummary").textContent = paid.length + " paid · " + formatNaira(revenue) + " gross sales · " + state.orders.length + " total orders";
+  if (!state.orders.length) {
+    const empty = document.createElement("div"); empty.className = "empty"; empty.textContent = "No orders yet. When readers buy a book, the order will appear here."; host.append(empty); return;
+  }
+  for (const order of state.orders) {
+    const row = document.createElement("article"); row.className = "order-row";
+    const main = document.createElement("div"); main.className = "order-main";
+    const title = document.createElement("strong"); title.textContent = order.book_title || "Clickers ebook";
+    const buyer = document.createElement("small"); buyer.textContent = order.buyer_email || "Buyer email unavailable";
+    const reference = document.createElement("small"); reference.textContent = "Ref: " + order.reference;
+    main.append(title, buyer, reference);
+    const side = document.createElement("div"); side.className = "order-side";
+    const amount = document.createElement("strong"); amount.textContent = formatNaira(order.amount_minor);
+    const stateLabel = document.createElement("span"); stateLabel.className = "pill " + (order.status === "paid" ? "success" : order.status === "failed" ? "danger" : ""); stateLabel.textContent = order.status || "pending";
+    const date = document.createElement("small"); date.textContent = order.paid_at ? new Date(order.paid_at).toLocaleString() : new Date(order.created_at).toLocaleString();
+    side.append(amount, stateLabel, date); row.append(main, side); host.append(row);
+  }
+}
+async function loadOrders() {
+  const orders = await api("/api/admin/orders");
+  state.orders = Array.isArray(orders) ? orders : [];
+  renderOrders();
+}
 async function startStudio() {
   if (!state.session?.access_token) { showLogin(); return; }
   showStudio();
   try {
     await loadBooks();
+    try { await loadOrders(); status("ordersStatus", "Sales data refreshed.", "success"); }
+    catch (error) { status("ordersStatus", "Sales panel will be available after the latest Worker is deployed. " + error.message, "error"); }
     status("globalStatus", "Connected to your private author workspace.", "success");
   } catch (error) {
     status("globalStatus", error.message, "error");
@@ -449,6 +483,7 @@ async function startStudio() {
   }
 }
 
+$("refreshOrdersButton").addEventListener("click", async () => { try { status("ordersStatus", "Refreshing orders…"); await loadOrders(); status("ordersStatus", "Sales data refreshed.", "success"); } catch (error) { status("ordersStatus", error.message, "error"); } });
 $("bookSearch").addEventListener("input", renderBooks);
 $("bookStatusFilter").addEventListener("change", renderBooks);
 $("bookCoverFile").addEventListener("change", () => {
