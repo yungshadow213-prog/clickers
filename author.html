@@ -77,7 +77,7 @@
 <form id="chapterForm">
 <div class="split"><div class="field"><label for="chapterNumber">Chapter number</label><input id="chapterNumber" type="number" min="1" max="10000" step="1" required></div><div class="field"><label for="chapterTitle">Chapter title</label><input id="chapterTitle" maxlength="180" required></div></div>
 <div class="field"><label for="chapterBody">Chapter text</label><textarea id="chapterBody" required placeholder="Start writing here…"></textarea></div>
-<div class="split"><label class="checkrow"><input id="chapterPublished" type="checkbox"> Publish this chapter</label></div>
+<div class="split"><label class="checkrow"><input id="chapterPublished" type="checkbox"> Publish this chapter</label><label class="checkrow"><input id="chapterPaid" type="checkbox" disabled> Legacy paid flag · not sold separately</label></div>
 <p class="hint">Use the book sales settings above to sell the complete PDF. Published chapters remain free reading previews.</p>
 <div class="actions"><button class="button" type="submit">Save chapter</button><button class="button outline" id="chapterPublishButton" type="button">Save & publish</button><button class="button subtle" id="revisionsButton" type="button">View revisions</button><button class="button danger" id="deleteChapterButton" type="button">Delete chapter</button></div>
 <p id="chapterStatus" class="status" role="status" aria-live="polite"></p>
