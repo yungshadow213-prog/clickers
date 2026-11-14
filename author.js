@@ -249,7 +249,7 @@ async function saveBook(forceStatus = null) {
     description: $("bookDescription").value.trim(),
     price_minor: priceMinor,
     currency: "NGN",
-    for_sale: forSale,
+    for_sale: forSale && !ebookFile,
     ebook_file_path: state.book?.ebook_file_path || ""
   };
   if (forceStatus && forceStatus !== "published") payload.status = forceStatus;
@@ -264,7 +264,7 @@ async function saveBook(forceStatus = null) {
     $("bookEbookStatus").textContent = "Uploading private PDF…";
     const filePath = await uploadEbook(ebookFile, saved.id);
     saved = await api("/api/admin/books/" + encodeURIComponent(saved.id), {
-      method: "PATCH", body: JSON.stringify({ ebook_file_path: filePath })
+      method: "PATCH", body: JSON.stringify({ ebook_file_path: filePath, for_sale: forSale })
     });
     $("bookEbookFile").value = "";
     $("bookEbookStatus").textContent = "Private PDF uploaded · ready for sale.";
