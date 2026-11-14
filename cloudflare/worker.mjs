@@ -271,7 +271,7 @@ async function checkoutInitialize(request, env, cors) {
       body: JSON.stringify({
         email, amount: String(book.price_minor), currency: book.currency || "NGN",
         reference, callback_url: site + "/checkout.html",
-        metadata: { book_id: book.id, book_title: book.title, order_id: orderRows[0].id }
+        metadata: JSON.stringify({ book_id: book.id, book_title: book.title, order_id: orderRows[0].id })
       })
     });
     return response({ authorization_url: payment.authorization_url, reference }, 200, cors);
