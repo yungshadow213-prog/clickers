@@ -56,7 +56,6 @@ function renderStore(){
  if($("count"))$("count").textContent=shown.length+" "+(shown.length===1?"book":"books")+" "+(q||g?"match your filters":"on the shelves");
  $("books").innerHTML=shown.length?shown.map(card).join(""):books.length?emptyState("No books found this time.","Try clearing a filter or searching for something else."):emptyState("The shelves are taking a fresh breath.","The old catalogue has been cleared. New titles will appear here as soon as they’re published.",'<a class="button button-primary" href="./index.html">Back to Clickers ↗</a>');
  renderGenrePills("storeGenres",g);
- renderGenreOptions();
  updateSavedCount();
 }
 function renderContinue(){
@@ -84,7 +83,7 @@ async function loadPublishedAuthorBooks(){
    return {id:item.id,title:item.title,genre:item.genre||"Fiction",description:item.description||"",cover:item.cover_path||"",author:item.author||"Yung Dharick",chapters,extraImages:item.extra_images||[],purchaseUrl:item.purchase_url||"",price_minor:Number(item.price_minor||0),currency:item.currency||"NGN",for_sale:item.for_sale===true};
   }));
   books.push(...additions.filter(Boolean));
-  renderHome();renderStore();renderBook();renderSaved();
+  renderGenreOptions();renderGenreOptions();renderHome();renderStore();renderBook();renderSaved();
  }catch(e){console.warn("Could not load published books.",e);}
 }
 function rememberProgress(){
