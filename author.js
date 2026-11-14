@@ -286,7 +286,7 @@ async function saveChapter(forceStatus = null) {
   const body = $("chapterBody").value;
   const payload = {
     chapter_number: number, title, body,
-    is_paid: false,
+    is_paid: state.isNewChapter ? false : state.chapter?.is_paid === true,
     status: forceStatus || ($("chapterPublished").checked ? "published" : "draft")
   };
   if (!Number.isInteger(number) || number < 1) throw new Error("Enter a valid chapter number.");
