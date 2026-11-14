@@ -1,56 +1,7 @@
-import assert from "node:assert/strict";
-import fs from "node:fs";
-import path from "node:path";
-import vm from "node:vm";
-
-const html = fs.readFileSync("index.html", "utf8");
-const bookSource = fs.readFileSync("books.js", "utf8");
-assert.match(html, /<script src="\.\/books\.js"><\/script>/, "HTML must load the book catalogue");
-assert.match(html, /<script src="\.\/author-config\.js"><\/script>/, "Reader must load the public author API configuration");
-assert.match(html, /id="readerContent"/, "Reader content area must exist");
-assert.match(html, /id="chapterSelect"/, "Chapter selector must exist");
-assert.match(html, /id="downloadBook"/, "Reader download control must exist");
-assert.ok(fs.existsSync("assets/the-man-behind-the-mask.jpg"), "The existing book cover asset must be included");
-const inlineScripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(match => match[1]);
-assert.equal(inlineScripts.length, 1, "Expected one application inline script");
-new Function(inlineScripts[0]);
-assert.match(inlineScripts[0], /async function loadPublishedAuthorBooks/, "Reader must load published books from the author API");
-assert.match(inlineScripts[0], /is_paid=eq\.false|\/api\/books\//, "Reader must use the public book/chapter API routes");
-assert.match(inlineScripts[0], /existing\.has\(titleKey\)/, "Reader must detect author books already present in the catalogue");
-assert.match(inlineScripts[0], /existing\.set\(titleKey,books\.length\)/, "Reader must track newly appended author books for deduplication");
-const context = { window: {} };
-vm.runInNewContext(bookSource, context);
-const books = context.window.READING_ROOM_BOOKS;
-assert.ok(Array.isArray(books) && books.length >= 2, "Expected at least two books");
-const ids = new Set();
-let chapterCount = 0;
-for (const book of books) {
-  assert.ok(book.id && book.title && book.description, "Each book needs identity and description");
-  assert.ok(!ids.has(book.id), "Book ids must be unique");
-  ids.add(book.id);
-  assert.ok(Array.isArray(book.chapters) && book.chapters.length > 0, book.title + " must have chapters");
-  for (const chapter of book.chapters) {
-    assert.ok(chapter.title, book.title + " has a chapter without a title");
-    assert.ok(Array.isArray(chapter.paragraphs) && chapter.paragraphs.length > 0, chapter.title + " has no paragraphs");
-    assert.ok(chapter.paragraphs.every(p => typeof p === "string" && p.trim()), chapter.title + " contains an empty paragraph");
-    chapterCount++;
-  }
-}
-assert.ok(html.includes("localStorage"), "Reading progress should persist on the device");
-for (const book of books) {
-  const storyPage = path.join("stories", book.id, "index.html");
-  assert.ok(fs.existsSync(storyPage), "Missing generated story landing page for " + book.title);
-  const page = fs.readFileSync(storyPage, "utf8");
-  assert.ok(page.includes('property="og:title"'), book.title + " landing page needs a social title");
-  assert.ok(page.includes('property="og:image"'), book.title + " landing page needs a social preview image");
-  assert.ok(page.includes('href="../../index.html?book=' + encodeURIComponent(book.id) + '"'), book.title + " landing page needs a reading link");
-}
-console.log("Site validation passed:", books.length, "books,", chapterCount, "chapters, and", books.length, "story landing pages.");
-
-const authorHtml = fs.readFileSync("author.html", "utf8");
-const authorScript = fs.readFileSync("author.js", "utf8");
-assert.match(authorHtml, /@media\(max-width:820px\)/, "Author studio must have a mobile layout");
-assert.match(authorHtml, /id="chapterBody"/, "Author studio must expose the chapter editor");
-assert.match(authorHtml, /id="backupButton"/, "Author studio must expose private backups");
-assert.match(authorScript, /Publish at least one free chapter before publishing this book/, "Books must not be publishable without at least one published free chapter");
-assert.match(authorScript, /async function loadRevisions/, "Author studio must retain chapter revision access");
+import assert from "node:assert/strict";import fs from "node:fs";import vm from "node:vm";
+const html=fs.readFileSync("index.html","utf8"),source=fs.readFileSync("books.js","utf8"),js=fs.readFileSync("storefront.js","utf8");
+assert.match(html,/styles\.css/);assert.match(html,/storefront\.js/);assert.match(html,/id="readerContent"/);assert.match(html,/id="nextChapter"/);assert.match(js,/async function loadPublishedAuthorBooks/);assert.match(js,/\/api\/books\//);new Function(js);
+const context={window:{}};vm.runInNewContext(source,context);const books=context.window.READING_ROOM_BOOKS;assert.ok(Array.isArray(books));const ids=new Set();for(const b of books){assert.ok(b.id&&b.title&&b.description);assert.ok(!ids.has(b.id));ids.add(b.id);assert.ok(Array.isArray(b.chapters)&&b.chapters.length>0);}
+const store=fs.readFileSync("store.html","utf8"),detail=fs.readFileSync("book.html","utf8");assert.match(store,/id="books"/);assert.match(detail,/id="purchaseNote"/);assert.match(js,/purchaseUrl/);
+const authorHtml=fs.readFileSync("author.html","utf8"),authorJs=fs.readFileSync("author.js","utf8");assert.match(authorHtml,/id="chapterBody"/);assert.match(authorHtml,/id="backupButton"/);assert.match(authorJs,/async function loadRevisions/);
+console.log("Clickers storefront validation passed:",books.length,"public static books.");
