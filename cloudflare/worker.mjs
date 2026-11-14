@@ -542,7 +542,7 @@ export default {
     try {
       if (url.pathname === "/api/books" && request.method === "GET") {
         const books = await db(env, "clickers_books", {
-          query: "owner_id=eq." + encodeURIComponent(env.OWNER_USER_ID) + "&status=eq.published&select=id,slug,title,description,genre,cover_path,extra_images&order=updated_at.desc"
+          query: "owner_id=eq." + encodeURIComponent(env.OWNER_USER_ID) + "&status=eq.published&created_at=gte.2026-11-14T00:00:00Z&select=id,slug,title,description,genre,cover_path,extra_images&order=updated_at.desc"
         });
         return response(books, 200, cors);
       }
