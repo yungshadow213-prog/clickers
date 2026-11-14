@@ -726,6 +726,9 @@ export default {
       return response({ ok: true, service: "clickers-private-api", authorApiReady: missing.length === 0, paymentReady: Boolean(env.PAYSTACK_SECRET_KEY), missingConfiguration: missing }, 200, cors);
     }
     if (!url.pathname.startsWith("/api/")) return response({ error: "Not found." }, 404, cors);
+    if (!configReady(env) && url.pathname.startsWith("/api/admin/")) return response(configurationError(env), 503, cors);
+
+    try {
       if (url.pathname === "/api/paystack/webhook" && request.method === "POST") {
         return await paystackWebhook(request, env);
       }
@@ -735,9 +738,6 @@ export default {
       if (url.pathname === "/api/checkout/verify" && request.method === "GET") {
         return await checkoutVerify(url, env, cors);
       }
-    if (!configReady(env)) return response(configurationError(env), 503, cors);
-
-    try {
       if (url.pathname === "/api/books" && request.method === "GET") {
         const books = await db(env, "clickers_books", {
           query: "owner_id=eq." + encodeURIComponent(env.OWNER_USER_ID) + "&status=eq.published&created_at=gte.2026-11-14T00:00:00Z&select=id,slug,title,description,genre,cover_path,extra_images,price_minor,currency,for_sale&order=updated_at.desc"
