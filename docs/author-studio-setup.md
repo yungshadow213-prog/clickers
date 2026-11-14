@@ -1,66 +1,72 @@
-# Clickers private author studio — setup and safety
+# Clickers Author Studio — setup and safety
 
-This feature is isolated on \`feature/private-author-dashboard\`. It does not change the reader page design or replace the existing \`books.js\` catalogue. It adds a separate \`author.html\` dashboard, a Cloudflare Worker API, and a Supabase migration for private author content.
+## Admin access
 
-## Important distinction
+The private author dashboard is published at:
 
-The two manuscripts currently stored in \`books.js\` are already public in the repository and on the static site. This upgrade does not make those existing published texts private retroactively. New drafts must be created in the private author dashboard and must not be copied into \`books.js\` until they are ready to be public.
+- `https://yungshadow213-prog.github.io/clickers/author.html`
+- `https://yungshadow213-prog.github.io/clickers/admin.html` (short alias)
 
-The Worker public API only lists published books and only returns chapters whose status is \`published\` **and** \`is_paid = false\`. Paid chapters remain excluded even if someone marks them published. Payment processing and paid-reader entitlements are not implemented yet, so do not sell access until that is implemented and tested.
+The public bookshop links to Author Studio, but the dashboard itself requires the approved Supabase Auth account. Account creation is disabled in the browser.
 
 ## Architecture
 
-- Existing Clickers reading room: stays visually unchanged.
-- \`author.html\` / \`author.js\`: separate author-only interface; sign-in is via Supabase Auth.
-- Cloudflare Worker (\`cloudflare/worker.mjs\`): checks the Supabase access token and an exact configured owner user ID before any author operation. The Supabase secret key is only used inside the Worker.
-- Supabase Postgres: private books, chapters, and chapter revisions; tables have RLS enabled and direct \`anon\` / \`authenticated\` table grants revoked.
-- Supabase Storage: private \`clickers-private\` bucket for backup JSON snapshots. Backup recovery creates additional **draft copies**; it never overwrites existing books.
+- `author.html` / `author.js`: private author interface.
+- `cloudflare/worker.mjs`: validates Supabase sessions, restricts author actions to the configured owner ID, stores the private manuscripts and mediates ebook uploads and purchases.
+- Supabase Postgres: private books, chapters, revisions and order records. RLS is enabled; direct `anon` and `authenticated` access to author and order tables is revoked.
+- Supabase Storage: public covers in `clickers-book-images`; full ebook PDFs and backup snapshots in private `clickers-private`.
 
-## One-time setup
+## Current Supabase project
 
-**Already completed:** a dedicated project named \`clickers\` was created for this site in region \`eu-west-2\`, and migration \`clickers_private_author\` was applied and verified. Its project reference is \`jlqyusgaauovyksksywh\`. The private tables have row-level security enabled, the private Storage bucket exists, and the security advisor returned no findings at setup time. Existing Supabase projects were not changed.
+The dedicated Clickers project is `jlqyusgaauovyksksywh` in `eu-west-2`. It was restored on 2026-11-14 and is now healthy. The private author schema and public image migration were already applied. The ebook sales migration `20261114172038_clickers_book_sales` is applied and verified.
 
-**Completed:** the approved owner account `yungshadow213@gmail.com` exists in this Clickers project and its email is confirmed. Its UUID was verified in Auth; do not commit that UUID to this public repository.
+## Cloudflare Worker secrets
 
-**Still required before the dashboard can sign in:**
+Keep all secret values out of browser files and Git:
 
-1. Configure the verified UUID for `yungshadow213@gmail.com` as the Worker secret `OWNER_USER_ID`. Keep it out of public files and commits.
-2. In [Clickers Project Settings → API Keys](https://supabase.com/dashboard/project/jlqyusgaauovyksksywh/settings/api-keys), copy the Project URL, publishable key, and a server-side secret key. The publishable key is already configured in \`author-config.js\`. The secret key must never be added to browser files, commits, screenshots, or chat.
-3. Install Wrangler in your local project environment and authenticate to Cloudflare. From the repository root, set Worker secrets:
+```sh
+npx wrangler secret put SUPABASE_SECRET_KEY
+npx wrangler secret put OWNER_USER_ID
+npx wrangler secret put PAYSTACK_SECRET_KEY
+npx wrangler secret put PAYSTACK_WEBHOOK_SECRET
+```
 
-   \`\`\`sh
-   npx wrangler secret put SUPABASE_URL
-   npx wrangler secret put SUPABASE_PUBLISHABLE_KEY
-   npx wrangler secret put SUPABASE_SECRET_KEY
-   npx wrangler secret put OWNER_USER_ID
-   npx wrangler deploy
-   \`\`\`
+The public Supabase URL and publishable key are configured in `author-config.js`. The Worker also needs the existing Supabase URL, publishable key and allowed origin settings. Deploy the Worker after setting the secrets:
 
-   Paste each value only into Wrangler's interactive prompt. Do not put secret values in shell history, commits, or screenshots.
+```sh
+npx wrangler deploy
+```
 
-4. The Worker allows browser requests only from \`https://yungshadow213-prog.github.io\` by default. If the site later moves to a custom domain, change \`ALLOWED_ORIGIN\` in \`wrangler.toml\` and deploy again.
-5. The public Worker URL must be added to \`author-config.js\` after deployment. Then deploy the static site using its existing Pages workflow. The public reader UI remains unchanged.
+Use the Paystack secret key from the environment you intend to run (test first, then live). The webhook signing secret is managed in Paystack Dashboard → Developers → Webhooks / API configuration. Never paste either secret into this chat, source files or GitHub commits.
 
-## Security behaviour
+## Paystack configuration
 
-- Only the exact configured Supabase Auth user ID can use author routes.
-- Worker secrets never appear in browser JavaScript.
-- Private books, chapters, and revision snapshots are not returned by the public endpoints.
-- The public chapter endpoint filters to \`status=published\` and \`is_paid=false\`.
-- Supabase Storage bucket is private. Backup objects live under the authenticated owner's UUID folder.
-- Chapter updates save the prior version to revision history before applying edits.
-- Restoring a backup creates new books/chapters as drafts, leaves existing books untouched, and retains paid flags so recovered paid chapters remain locked from public delivery.
-- Backups are stored in the same Supabase project. Keep a separate offline copy of important backups too; same-project storage is not a substitute for disaster recovery.
+- Callback URL: `https://yungshadow213-prog.github.io/clickers/checkout.html`
+- Webhook URL: `https://clickers.rayyung713.workers.dev/api/paystack/webhook`
+- Currency: NGN. Prices entered in Author Studio are naira; the Worker converts to kobo.
+- The Worker creates the transaction from the stored book price. Client-submitted prices are ignored.
+- The Worker verifies the transaction directly with Paystack and checks the reference, successful status, amount, currency and buyer email before issuing a 10-minute signed URL.
+- Paystack webhooks are signature-verified. Both the newer timestamped `Paystack-Signature` and legacy `x-paystack-signature` format are supported.
+- Ebook PDFs are stored in the private Storage bucket and are not returned by public book APIs.
+- Do not publish a book for sale until a PDF is uploaded, a price is set and Paystack secrets are configured.
 
-## Free-tier feasibility (checked 23 October 2026)
+## Publishing workflow
 
-The first deployment can be operated at **$0/month** if usage remains within both platforms' free allowances and no paid add-ons are selected:
+1. Sign in at `/author.html`.
+2. Create the book, upload its cover and write its free sample chapters.
+3. Upload the complete ebook PDF, set its NGN price and enable Offer this book for sale.
+4. Save the book, publish at least one free chapter, then publish the book.
+5. The public book page shows the price and secure checkout action.
+6. After successful payment, Paystack redirects the buyer to the checkout page; the Worker verifies the transaction and issues a temporary private download URL.
 
-- Cloudflare Workers Free: 100,000 requests/day, with 10 ms CPU time per invocation. The Worker is small and the API workload should fit for a small author workflow. [Cloudflare limits](https://developers.cloudflare.com/workers/platform/limits/) · [Cloudflare pricing](https://developers.cloudflare.com/workers/platform/pricing/)
-- Supabase Free: 500 MB database per project, 1 GB file storage, 50,000 monthly active users, and 5 GB egress. Free projects may pause after one week of inactivity and the free tier does not include automatic database backups. [Supabase pricing](https://supabase.com/pricing) · [Supabase billing](https://supabase.com/docs/guides/platform/billing-on-supabase)
+Paid chapters are deliberately not delivered as unlocked web chapters. Clickers sells the complete PDF edition. Orders retain a snapshot of the book title, amount and PDF storage path so later book edits do not change a completed purchase.
 
-Private backup snapshots use the project's 1 GB Storage allowance. As manuscripts and snapshots grow, storage will need monitoring and old backups may need to be exported and removed. This is a free-tier design, not a guarantee of unlimited storage or availability.
+## Safety and operational notes
 
-## Validation
-
-The PR validation workflow first generates the existing shareable story pages, then runs the existing site checks and new Worker API security tests. It does not apply the database migration, create a Supabase project, configure secrets, or deploy a Worker. Those steps require the intended Clickers project and owner account to be selected first.
+- Only the configured owner account can access author routes.
+- Secret/service-role keys remain server-side.
+- RLS is enabled on private tables, with no direct public or authenticated table grants.
+- Full PDF files are not stored in public buckets.
+- Paystack confirmation is server-side; a browser redirect alone never unlocks a file.
+- Test transactions in Paystack test mode before accepting live payments.
+- The Supabase security advisor currently reports that leaked-password protection is disabled; enable it in Supabase Auth settings before inviting any additional accounts.

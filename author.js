@@ -60,6 +60,20 @@ async function uploadImage(file) {
   if (!result.ok || !data.url) throw new Error(data.error || "Image upload failed.");
   return data.url;
 }
+async function uploadEbook(file, bookId) {
+  if (!file) return null;
+  if (file.type !== "application/pdf") throw new Error("Choose a PDF ebook file.");
+  if (file.size > 50 * 1024 * 1024) throw new Error("Ebook PDFs must be 50 MB or smaller.");
+  const form = new FormData(); form.append("file", file, file.name); form.append("book_id", bookId);
+  const result = await fetch(apiUrl("/api/admin/ebooks"), {
+    method: "POST",
+    headers: { authorization: "Bearer " + state.session.access_token },
+    body: form, cache: "no-store"
+  });
+  const data = await result.json().catch(() => ({}));
+  if (!result.ok || !data.path) throw new Error(data.error || "Private ebook upload failed.");
+  return data.path;
+}
 function resetBookEditor() {
   state.book = null; state.chapters = []; state.chapter = null; state.isNewBook = false; state.isNewChapter = false;
   $("noBookState").classList.remove("hidden");
@@ -120,6 +134,10 @@ async function loadBook(id) {
     $("bookCover").value = book.cover_path || "";
     $("bookCoverPreview").src = book.cover_path || ""; $("bookCoverPreview").classList.toggle("hidden", !book.cover_path);
     $("bookDescription").value = book.description || "";
+    $("bookPrice").value = book.price_minor ? (Number(book.price_minor) / 100).toFixed(2) : "";
+    $("bookForSale").checked = book.for_sale === true;
+    $("bookEbookFile").value = "";
+    $("bookEbookStatus").textContent = book.ebook_file_path ? "Private PDF uploaded · ready for sale." : "No private PDF uploaded yet · up to 50 MB.";
     $("bookCoverFile").value = "";
     $("bookExtraImages").value = "";
     $("bookExtraImageList").textContent = Array.isArray(book.extra_images) && book.extra_images.length ? book.extra_images.map(item => item.name || "Image").join(" · ") : "No additional images saved.";
@@ -164,7 +182,7 @@ function openChapter(id) {
   $("chapterNumber").value = state.chapter.chapter_number;
   $("chapterTitle").value = state.chapter.title || "";
   $("chapterBody").value = state.chapter.body || "";
-  $("chapterPaid").checked = state.chapter.is_paid === true;
+
   $("chapterPublished").checked = state.chapter.status === "published";
   $("chapterPublishButton").textContent = "Save & publish";
   $("revisionsPanel").classList.add("hidden");
@@ -190,7 +208,7 @@ function newChapter() {
   state.chapter = null; state.isNewChapter = true;
   $("chapterEditor").classList.remove("hidden");
   $("chapterNumber").value = Math.max(0, ...state.chapters.map(ch => ch.chapter_number)) + 1;
-  $("chapterTitle").value = ""; $("chapterBody").value = ""; $("chapterPaid").checked = false; $("chapterPublished").checked = false;
+  $("chapterTitle").value = ""; $("chapterBody").value = ""; $("chapterPublished").checked = false;
   $("chapterPublishButton").textContent = "Save & publish";
   $("revisionsPanel").classList.add("hidden");
   status("chapterStatus", "New chapter — save when ready.");
@@ -200,9 +218,11 @@ function newChapter() {
 async function saveBook(forceStatus = null) {
   const title = $("bookTitle").value.trim();
   const coverFile = $("bookCoverFile").files && $("bookCoverFile").files[0];
+  const ebookFile = $("bookEbookFile").files && $("bookEbookFile").files[0];
   const currentExtraImages = Array.isArray(state.book?.extra_images) ? [...state.book.extra_images] : [];
   const extraFiles = Array.from($("bookExtraImages").files || []);
   if (extraFiles.length > 8) throw new Error("Upload up to 8 additional images per book.");
+  if (ebookFile && (ebookFile.type !== "application/pdf" || ebookFile.size > 50 * 1024 * 1024)) throw new Error("Choose a PDF ebook file no larger than 50 MB.");
   if (coverFile) {
     status("bookStatus", "Uploading cover image…");
     $("bookCover").value = await uploadImage(coverFile);
@@ -214,21 +234,47 @@ async function saveBook(forceStatus = null) {
     status("bookStatus", "Uploading additional image " + (uploadedExtras.length + 1) + " of " + extraFiles.length + "…");
     uploadedExtras.push({ name: file.name, url: await uploadImage(file) });
   }
+  const price = $("bookPrice").value.trim();
+  const priceMinor = price ? Math.round(Number(price) * 100) : 0;
+  if (!Number.isSafeInteger(priceMinor) || priceMinor < 0) throw new Error("Enter a valid NGN price.");
+  const forSale = $("bookForSale").checked;
+  if (forSale && priceMinor < 100) throw new Error("Set a price of at least ₦1 for a paid ebook.");
+  if (forSale && !ebookFile && !state.book?.ebook_file_path) throw new Error("Upload the complete PDF before offering this book for sale.");
   const payload = {
     title,
     slug: $("bookSlug").value.trim() || title,
     genre: $("bookGenre").value.trim(),
     cover_path: $("bookCover").value.trim(),
     extra_images: [...currentExtraImages, ...uploadedExtras],
-    description: $("bookDescription").value.trim()
+    description: $("bookDescription").value.trim(),
+    price_minor: priceMinor,
+    currency: "NGN",
+    for_sale: forSale && !ebookFile,
+    ebook_file_path: state.book?.ebook_file_path || ""
   };
-  if (forceStatus) payload.status = forceStatus;
+  if (forceStatus && forceStatus !== "published") payload.status = forceStatus;
   if (!payload.title) throw new Error("A book title is required.");
-  status("bookStatus", "Saving…");
-  const saved = state.isNewBook
+  status("bookStatus", "Saving book details…");
+  let saved = state.isNewBook
     ? await api("/api/admin/books", { method: "POST", body: JSON.stringify(payload) })
     : await api("/api/admin/books/" + encodeURIComponent(state.book.id), { method: "PATCH", body: JSON.stringify(payload) });
   state.isNewBook = false;
+  if (ebookFile) {
+    status("bookStatus", "Uploading private ebook PDF…");
+    $("bookEbookStatus").textContent = "Uploading private PDF…";
+    const filePath = await uploadEbook(ebookFile, saved.id);
+    saved = await api("/api/admin/books/" + encodeURIComponent(saved.id), {
+      method: "PATCH", body: JSON.stringify({ ebook_file_path: filePath, for_sale: forSale })
+    });
+    $("bookEbookFile").value = "";
+    $("bookEbookStatus").textContent = "Private PDF uploaded · ready for sale.";
+  }
+  if (forceStatus === "published") {
+    status("bookStatus", "Publishing book…");
+    saved = await api("/api/admin/books/" + encodeURIComponent(saved.id), {
+      method: "PATCH", body: JSON.stringify({ status: "published" })
+    });
+  }
   await loadBooks(saved.id);
   status("bookStatus", "Book saved.", "success");
   return saved;
@@ -240,7 +286,7 @@ async function saveChapter(forceStatus = null) {
   const body = $("chapterBody").value;
   const payload = {
     chapter_number: number, title, body,
-    is_paid: $("chapterPaid").checked,
+    is_paid: state.isNewChapter ? false : state.chapter?.is_paid === true,
     status: forceStatus || ($("chapterPublished").checked ? "published" : "draft")
   };
   if (!Number.isInteger(number) || number < 1) throw new Error("Enter a valid chapter number.");
@@ -273,6 +319,9 @@ async function deleteChapter() {
 async function toggleBookPublish() {
   if (!state.book?.id) return;
   const next = state.book.status === "published" ? "draft" : "published";
+  if (next === "published" && state.book.for_sale && !state.book.ebook_file_path && !$("bookEbookFile").files?.[0]) {
+    throw new Error("Upload the complete PDF before publishing this book for sale.");
+  }
   if (next === "published") {
     const hasFreePublishedChapter = state.chapters.some(chapter =>
       chapter.status === "published" && chapter.is_paid !== true

@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#fff7f1"><meta name="robots" content="noindex,nofollow">
+<title>Secure checkout — Clickers</title><link rel="stylesheet" href="./styles.css">
+<style>
+.hidden{display:none!important}.checkout-wrap{width:min(760px,calc(100% - 32px));margin:70px auto 100px}.checkout-card{background:#fffdf8;border:1px solid #e8d8cf;padding:clamp(24px,5vw,52px);box-shadow:0 24px 70px #3c19200d}.checkout-card h1{font:clamp(36px,6vw,58px)/1.05 Georgia,serif;letter-spacing:-.045em;margin:14px 0}.checkout-kicker{font:10px Arial,sans-serif;letter-spacing:.2em;text-transform:uppercase;color:#8d4859}.checkout-copy{font:14px/1.8 Arial,sans-serif;color:#75645f}.checkout-field{display:grid;gap:8px;margin:24px 0}.checkout-field label{font:11px Arial,sans-serif;color:#75645f}.checkout-field input{width:100%;padding:14px;border:1px solid #e2d3ca;border-radius:8px;font:14px Arial,sans-serif}.checkout-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}.checkout-status{margin-top:18px;font:12px/1.7 Arial,sans-serif;color:#75645f;min-height:22px}.checkout-status.error{color:#a23f45}.checkout-status.success{color:#3b6a4a}.checkout-price{font:28px Georgia,serif;margin:20px 0}.checkout-book{padding:18px;background:#f8eee8;margin:24px 0}.checkout-book strong{display:block;font:22px Georgia,serif}.checkout-book small{font:11px Arial,sans-serif;color:#75645f}.checkout-download{display:inline-flex;margin-top:20px;padding:14px 22px;border-radius:999px;background:#793c4a;color:white;text-decoration:none;font:12px Arial,sans-serif}
+</style>
+</head>
+<body>
+<header><div class="wrap nav"><a class="brand" href="./index.html"><span class="brand-mark">c</span><span>clickers<small>the story house</small></span></a><a class="text-link" href="./store.html">Back to bookshop ←</a></div></header>
+<main class="checkout-wrap"><section class="checkout-card">
+<div class="checkout-kicker">A story worth keeping</div>
+<h1 id="heading">Secure book checkout.</h1>
+<p class="checkout-copy" id="intro">Complete your purchase securely. Your PDF stays private and is released only after Paystack confirms payment.</p>
+<div id="bookSummary" class="checkout-book hidden"><strong id="bookTitle"></strong><small id="bookGenre"></small><div class="checkout-price" id="bookPrice"></div></div>
+<form id="checkoutForm" class="hidden">
+<div class="checkout-field"><label for="buyerEmail">Email address for your receipt and order</label><input id="buyerEmail" type="email" autocomplete="email" required placeholder="you@example.com"></div>
+<div class="checkout-actions"><button class="button" id="payButton" type="submit">Continue to secure payment ↗</button><a class="button outline" href="./store.html">Back to bookshop</a></div>
+</form>
+<div id="result" class="checkout-status" role="status" aria-live="polite"></div>
+<a id="downloadLink" class="checkout-download hidden" rel="noopener">Download your ebook ↓</a>
+</section></main>
+<script src="./author-config.js"></script><script src="./checkout.js"></script>
+</body></html>
