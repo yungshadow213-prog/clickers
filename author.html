@@ -44,6 +44,13 @@
 <div class="metric"><div class="metric-top">Last updated <span class="metric-icon">◷</span></div><strong id="metricUpdated" style="font-size:19px;line-height:1.4">—</strong><small>Most recent saved manuscript</small></div>
 </div>
 <div class="section-note">Publishing safety: edits in this workspace are separate from the public catalogue until saved and published. Create a private backup before major changes.</div>
+<details id="ordersPanel" class="panel orders-panel">
+  <summary><span>Sales & orders</span><small id="ordersCount">Loading orders…</small></summary>
+  <div class="orders-head"><p class="muted">Private order history and paid ebook revenue. Only your author account can see buyer details.</p><button id="refreshOrdersButton" class="button outline" type="button">↻ Refresh orders</button></div>
+  <div id="ordersSummary" class="orders-summary">Loading sales overview…</div>
+  <div id="ordersList" class="orders-list"></div>
+  <p id="ordersStatus" class="status" role="status" aria-live="polite"></p>
+</details>
 <div class="layout">
 <aside class="panel book-panel">
 <div class="workspace-head"><h2>Your library</h2><button id="newBookButton" class="button" type="button">+ New book</button></div><p class="muted">Search your manuscripts, filter by status, or import the public catalogue to bring existing stories into your workspace.</p><button id="importLibraryButton" class="button outline" type="button" style="width:100%;margin-bottom:14px">↓ Import public books</button><div class="book-tools"><input id="bookSearch" type="search" placeholder="Find a book…" aria-label="Search your books"><select id="bookStatusFilter" aria-label="Filter books by status"><option value="all">All statuses</option><option value="published">Published</option><option value="draft">Drafts</option></select></div>
