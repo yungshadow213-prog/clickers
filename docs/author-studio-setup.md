@@ -53,7 +53,8 @@ Use the Paystack secret key from the environment you intend to run (test first, 
 3. Upload the complete ebook PDF, set its NGN price and enable Offer this book for sale.
 4. Save the book, publish at least one free chapter, then publish the book.
 5. The public book page shows the price and secure checkout action.
-6. After successful payment, Paystack redirects the buyer to the checkout page; the Worker verifies the transaction and issues a temporary private download URL.
+6. The Author Studio Sales & orders panel lists the latest 100 orders and paid volume, visible only to the owner account.
+7. After successful payment, Paystack redirects the buyer to the checkout page; the Worker verifies the transaction and issues a temporary private download URL.
 
 Paid chapters are deliberately not delivered as unlocked web chapters. Clickers sells the complete PDF edition. Orders retain a snapshot of the book title, amount and PDF storage path so later book edits do not change a completed purchase.
 
