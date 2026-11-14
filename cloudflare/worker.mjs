@@ -326,6 +326,12 @@ async function adminRoute(request, env, url, user) {
   const path = url.pathname.replace(/\/+$/, "");
   const method = request.method;
 
+  if (path === "/api/admin/orders" && method === "GET") {
+    return response(await db(env, "clickers_orders", {
+      query: ownerFilter(ownerId) + "&select=id,book_title,amount_minor,currency,buyer_email,reference,status,paid_at,created_at&order=created_at.desc&limit=100"
+    }));
+  }
+
   if (path === "/api/admin/images" && method === "POST") {
     let form;
     try { form = await request.formData(); } catch { return response({ error: "Send an image file." }, 400); }
