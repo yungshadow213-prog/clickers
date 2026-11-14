@@ -31,7 +31,7 @@ npx wrangler secret put PAYSTACK_SECRET_KEY
 npx wrangler secret put PAYSTACK_WEBHOOK_SECRET
 ```
 
-The public Supabase URL and publishable key are configured in `author-config.js`. The Worker also needs the existing Supabase URL, publishable key and allowed origin settings. Deploy the Worker after setting the secrets. For a GitHub-driven deployment, add repository Actions secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`, then run Actions → Deploy Clickers Worker → Run workflow. This deploy workflow preserves Worker secrets already configured in Cloudflare. Alternatively, run `npx wrangler deploy` from a locally authenticated project directory.
+The public Supabase URL and publishable key are configured in `author-config.js`. The Worker also needs the existing Supabase URL, publishable key and allowed origin settings. Deploy the Worker after setting the secrets. For a GitHub-driven deployment, add repository Actions secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`, plus `PAYSTACK_SECRET_KEY` and `PAYSTACK_WEBHOOK_SECRET` to activate payments. If the Supabase service key is not already stored in Cloudflare, also add `CLICKERS_SUPABASE_SECRET_KEY`. Then run Actions → Deploy Clickers Worker → Run workflow. The workflow writes any supplied secret values into Cloudflare before deploying; omitted optional secrets are left unchanged. Alternatively, run `npx wrangler deploy` from a locally authenticated project directory.
 
 Use the Paystack secret key from the environment you intend to run (test first, then live). The webhook signing secret is managed in Paystack Dashboard → Developers → Webhooks / API configuration. Never paste either secret into this chat, source files or GitHub commits.
 
