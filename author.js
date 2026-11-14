@@ -194,7 +194,7 @@ function newBook() {
   state.book = null; state.chapters = []; state.chapter = null; state.isNewBook = true; state.isNewChapter = false;
   $("noBookState").classList.add("hidden");
   $("bookEditor").classList.remove("hidden");
-  $("bookTitle").value = ""; $("bookSlug").value = ""; $("bookGenre").value = ""; $("bookCover").value = ""; $("bookDescription").value = ""; $("bookCoverPreview").removeAttribute("src"); $("bookCoverPreview").classList.add("hidden"); $("bookCoverFile").value = ""; $("bookExtraImages").value = ""; $("bookExtraImageList").textContent = "No additional images selected.";
+  $("bookTitle").value = ""; $("bookSlug").value = ""; $("bookGenre").value = ""; $("bookCover").value = ""; $("bookDescription").value = ""; $("bookPrice").value = ""; $("bookForSale").checked = false; $("bookEbookFile").value = ""; $("bookEbookStatus").textContent = "No private PDF uploaded yet · up to 50 MB."; $("bookCoverPreview").removeAttribute("src"); $("bookCoverPreview").classList.add("hidden"); $("bookCoverFile").value = ""; $("bookExtraImages").value = ""; $("bookExtraImageList").textContent = "No additional images selected.";
   $("bookEditorHeading").textContent = "New book"; $("bookStatusPill").textContent = "Not saved";
   $("publishBookButton").textContent = "Publish book";
   $("chapterList").replaceChildren();
@@ -208,7 +208,7 @@ function newChapter() {
   state.chapter = null; state.isNewChapter = true;
   $("chapterEditor").classList.remove("hidden");
   $("chapterNumber").value = Math.max(0, ...state.chapters.map(ch => ch.chapter_number)) + 1;
-  $("chapterTitle").value = ""; $("chapterBody").value = ""; $("chapterPublished").checked = false;
+  $("chapterTitle").value = ""; $("chapterBody").value = ""; $("chapterPaid").checked = false; $("chapterPublished").checked = false;
   $("chapterPublishButton").textContent = "Save & publish";
   $("revisionsPanel").classList.add("hidden");
   status("chapterStatus", "New chapter — save when ready.");
