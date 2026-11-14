@@ -444,7 +444,7 @@ function renderOrders() {
   const paid = state.orders.filter(order => order.status === "paid");
   const revenue = paid.reduce((sum, order) => sum + Number(order.amount_minor || 0), 0);
   $("ordersCount").textContent = state.orders.length + (state.orders.length === 1 ? " order" : " orders");
-  $("ordersSummary").textContent = paid.length + " paid · " + formatNaira(revenue) + " gross sales · " + state.orders.length + " total orders";
+  $("ordersSummary").textContent = "Latest " + state.orders.length + " orders · " + paid.length + " paid · " + formatNaira(revenue) + " paid volume";
   if (!state.orders.length) {
     const empty = document.createElement("div"); empty.className = "empty"; empty.textContent = "No orders yet. When readers buy a book, the order will appear here."; host.append(empty); return;
   }
