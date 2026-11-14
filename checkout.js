@@ -6,6 +6,8 @@ function status(message,kind=""){$("result").textContent=message;$("result").cla
 function money(amount){return "₦"+(Number(amount||0)/100).toLocaleString("en-NG",{minimumFractionDigits:2,maximumFractionDigits:2});}
 async function loadBook(){
  if(!api){status("The checkout service is not configured yet. Please contact the author.", "error");return;}
+ const healthResponse=await fetch(api+"/api/health",{cache:"no-store"}),health=await healthResponse.json().catch(()=>({}));
+ if(!healthResponse.ok||health.paymentReady!==true)throw new Error("Secure checkout is being activated. Please check back soon.");
  const r=await fetch(api+"/api/books",{cache:"no-store"});if(!r.ok)throw new Error("The bookshop could not be reached. Please try again.");
  const books=await r.json();selectedBook=books.find(b=>String(b.id)===String(bookId)&&b.for_sale===true);
  if(!selectedBook)throw new Error("This book is not currently available for purchase.");
