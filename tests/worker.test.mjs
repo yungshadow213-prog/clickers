@@ -515,3 +515,27 @@ test("author ebook uploads are stored in the private bucket under the owner's bo
   assert.match(uploadUrl, /\/storage\/v1\/object\/clickers-private\//);
   assert.equal(uploadUrl.includes("public"), false);
 });
+
+
+test("sales orders are restricted to the authenticated Clickers owner", async () => {
+  const calls = [];
+  globalThis.fetch = async (url, init = {}) => {
+    const parsed = new URL(String(url));
+    calls.push({ parsed, init });
+    if (parsed.pathname === "/auth/v1/user") return new Response(JSON.stringify({ id: env.OWNER_USER_ID }), { status: 200 });
+    if (parsed.pathname === "/rest/v1/clickers_orders") {
+      return new Response(JSON.stringify([{ id: "order-1", book_title: "A Clickers Story", amount_minor: 250000, status: "paid" }]), { status: 200 });
+    }
+    throw new Error("Unexpected URL " + parsed);
+  };
+  const result = await worker.fetch(new Request("https://api.example.workers.dev/api/admin/orders", {
+    headers: { origin: env.ALLOWED_ORIGIN, authorization: "Bearer owner-session" }
+  }), env);
+  assert.equal(result.status, 200);
+  const data = await result.json();
+  assert.equal(data.length, 1);
+  assert.equal(data[0].status, "paid");
+  const orderCall = calls.find(call => call.parsed.pathname === "/rest/v1/clickers_orders");
+  assert.match(orderCall.parsed.search, new RegExp("owner_id=eq\\." + env.OWNER_USER_ID));
+  assert.match(orderCall.parsed.search, /limit=100/);
+});
